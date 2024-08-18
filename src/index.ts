@@ -6,10 +6,13 @@ const program = new Command()
 
 /**
  * @description
- * use changeset docs
+ * use changesets
  */
-program.command('changesets').action((options, command) => {
-  add({ args: command.args })
-})
+program
+  .command('changesets')
+  .alias('cs')
+  .action((_options, command) => {
+    add({ args: command.args })
+  })
 
 program.parse()

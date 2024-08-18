@@ -1,10 +1,12 @@
 {
   "name": "@aiszlab/jarvis",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "robot",
   "main": "dist/index.js",
   "type": "module",
-  "bin": "dist/index.js",
+  "bin": {
+    "z": "dist/index.js"
+  },
   "scripts": {
     "dev": "tsc -w",
     "build": "tsc",
