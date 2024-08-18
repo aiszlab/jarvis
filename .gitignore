@@ -1,5 +1,5 @@
 # build output
-bin
+dist
 
 # package manager
 node_modules
