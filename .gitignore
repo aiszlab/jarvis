@@ -1,0 +1,9 @@
+# build output
+bin
+
+# package manager
+node_modules
+
+# editor
+.idea
+.vscode
