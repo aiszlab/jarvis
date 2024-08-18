@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { Command } from 'commander'
-import { add } from './changeset/index.js'
+import { add } from './changesets/index.js'
 
 const program = new Command()
 
@@ -8,8 +8,8 @@ const program = new Command()
  * @description
  * use changeset docs
  */
-program.command('changeset').action(() => {
-  add()
+program.command('changesets').action((options, command) => {
+  add({ args: command.args })
 })
 
 program.parse()
