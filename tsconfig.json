@@ -4,5 +4,6 @@
     "rootDir": "src",
     "module": "NodeNext",
     "moduleResolution": "NodeNext"
-  }
+  },
+  "exclude": ["vitest.config.ts", "dist", "node_modules", "**/*.test.ts"]
 }
