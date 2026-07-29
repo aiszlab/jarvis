@@ -91,7 +91,7 @@ export async function collectInputs(inputs: Record<string, InputField>): Promise
  * @description
  * switch platform & model, output export commands for the shell
  *
- * usage: eval "$(jar switch)"
+ * usage: eval "$(jrv switch)"
  */
 export const switchPlatform = async () => {
   // step 1 — choose platform

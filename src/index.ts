@@ -33,7 +33,7 @@ program
  * @description
  * switch platform & model, outputs export commands
  *
- * usage: eval "$(jar switch)"
+ * usage: eval "$(jrv switch)"
  */
 program
   .command("switch")

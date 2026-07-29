@@ -1,5 +1,15 @@
 # @aiszlab/jarvis
 
+## 1.0.4
+
+### Patch Changes
+
+- 新增 `jrv setup` — 自动安装 pnpm 与 claude-code，初始化开发环境
+- 新增 `jrv switch` — 交互式切换 AI 平台/模型，输出 shell 环境变量
+- CLI 二进制重命名 `z` → `jrv`
+- 集成 vitest，添加 switch 模块单元测试
+- 升级 commander、typescript 等依赖，新增 @inquirer/prompts
+
 ## 1.0.3
 
 ### Patch Changes
