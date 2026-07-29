@@ -1,5 +1,11 @@
 # @aiszlab/jarvis
 
+## 1.0.5
+
+### Patch Changes
+
+- changesets -v 选项映射为 version 子命令传入 add
+
 ## 1.0.4
 
 ### Patch Changes

@@ -14,20 +14,25 @@ const program = new Command();
 program
   .command("changesets")
   .alias("cs")
+  .option("-v, --version", "修订 changesets 版本")
   .argument("[command]")
-  .action((command?: string) => {
-    add({ command });
+  .action((command?: string, options?: { version?: boolean }) => {
+    add({
+      command: new Set([command, options?.version ? "version" : void 0])
+        .values()
+        .filter((i) => !!i)
+        .toArray()
+        .at(0),
+    });
   });
 
 /**
  * @description
  * initialize dev environment (pnpm + claude-code)
  */
-program
-  .command("setup")
-  .action(() => {
-    setupDev();
-  });
+program.command("setup").action(() => {
+  setupDev();
+});
 
 /**
  * @description
