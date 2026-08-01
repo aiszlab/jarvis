@@ -1,5 +1,11 @@
 # @aiszlab/jarvis
 
+## 1.1.0
+
+### Minor Changes
+
+- Add `kill` command (`jrv kill <port>` / alias `k`) to stop the process listening on a given port. Works on macOS/linux via `lsof` and on windows via `netstat`.
+
 ## 1.0.5
 
 ### Patch Changes
