@@ -1,7 +1,11 @@
 import { select, input } from "@inquirer/prompts";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+const SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
 
 /**
- * @description
  * an input field the user must fill in manually
  */
 interface InputField {
@@ -10,7 +14,6 @@ interface InputField {
 }
 
 /**
- * @description
  * a model preset with static env vars and interactive inputs
  */
 interface ModelPreset {
@@ -22,7 +25,6 @@ interface ModelPreset {
 }
 
 /**
- * @description
  * model presets for each platform
  */
 const PLATFORMS: Record<string, { label: string; models: Record<string, ModelPreset> }> = {
@@ -43,7 +45,22 @@ const PLATFORMS: Record<string, { label: string; models: Record<string, ModelPre
         inputs: {
           ANTHROPIC_AUTH_TOKEN: {
             message: "Enter your ANTHROPIC_AUTH_TOKEN",
-            default: () => process.env.ANTHROPIC_AUTH_TOKEN ?? "",
+          },
+        },
+      },
+      "ark-coding-plan": {
+        label: "Ark Coding Plan",
+        env: {
+          ANTHROPIC_BASE_URL: "https://ark.cn-beijing.volces.com/api/coding",
+          ANTHROPIC_MODEL: "ark-code-latest",
+          ANTHROPIC_DEFAULT_HAIKU_MODEL: "ark-code-latest",
+          ANTHROPIC_DEFAULT_SONNET_MODEL: "ark-code-latest",
+          ANTHROPIC_DEFAULT_OPUS_MODEL: "ark-code-latest",
+          CLAUDE_CODE_SUBAGENT_MODEL: "ark-code-latest",
+        },
+        inputs: {
+          ANTHROPIC_AUTH_TOKEN: {
+            message: "Enter your ANTHROPIC_AUTH_TOKEN (ark-xxx)",
           },
         },
       },
@@ -54,26 +71,28 @@ const PLATFORMS: Record<string, { label: string; models: Record<string, ModelPre
 type PlatformKey = keyof typeof PLATFORMS;
 
 /**
- * @description
- * collect existing env values from current process (static env keys only)
+ * read existing ~/.claude/settings.json, returns parsed object or empty object
  */
-export function collectExistingEnv(platform: PlatformKey): Record<string, string> {
-  const existing: Record<string, string> = {};
-  const modelPresets = PLATFORMS[platform].models;
-
-  for (const [, preset] of Object.entries(modelPresets)) {
-    for (const key of Object.keys(preset.env)) {
-      if (process.env[key]) {
-        existing[key] = process.env[key]!;
-      }
-    }
+export function readSettings(): Record<string, unknown> {
+  if (!existsSync(SETTINGS_PATH)) {
+    return {};
   }
-
-  return existing;
+  try {
+    return JSON.parse(readFileSync(SETTINGS_PATH, "utf-8"));
+  } catch {
+    console.warn(`Warning: failed to parse ${SETTINGS_PATH}, starting fresh`);
+    return {};
+  }
 }
 
 /**
- * @description
+ * write settings to ~/.claude/settings.json
+ */
+export function writeSettings(settings: Record<string, unknown>): void {
+  writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2) + "\n");
+}
+
+/**
  * iterate over the model's `inputs` config and prompt the user for each field
  */
 export async function collectInputs(inputs: Record<string, InputField>): Promise<Record<string, string>> {
@@ -88,10 +107,7 @@ export async function collectInputs(inputs: Record<string, InputField>): Promise
 }
 
 /**
- * @description
- * switch platform & model, output export commands for the shell
- *
- * usage: eval "$(jrv switch)"
+ * switch platform & model, persist config to ~/.claude/settings.json
  */
 export const switchPlatform = async () => {
   // step 1 — choose platform
@@ -120,20 +136,19 @@ export const switchPlatform = async () => {
     ? await collectInputs(modelDef.inputs)
     : {};
 
-  // step 4 — collect env vars (preset + existing + inputs)
-  const existing = collectExistingEnv(platform);
+  // step 4 — read existing settings and merge env vars
+  const settings = readSettings();
+  const existingEnv = (settings.env as Record<string, string>) ?? {};
 
   // preset takes priority over existing; inputs override both
-  const merged = { ...existing, ...modelDef.env, ...inputVars };
+  settings.env = { ...existingEnv, ...modelDef.env, ...inputVars };
 
-  // step 5 — output export commands
-  const exports = Object.entries(merged)
-    .map(([key, value]) => `export ${key}="${value}"`)
-    .join("\n");
+  // step 5 — write back to settings.json
+  writeSettings(settings);
 
-  console.log(exports);
   console.log(
-    `# switched to ${platformDef.label} / ${modelDef.label}`,
+    `✓ switched to ${platformDef.label} / ${modelDef.label}`,
   );
+  console.log(`  updated ${SETTINGS_PATH}`);
 };
 

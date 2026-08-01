@@ -8,7 +8,6 @@ import { switchPlatform } from "./switch/index.js";
 const program = new Command();
 
 /**
- * @description
  * use changesets
  */
 program
@@ -27,7 +26,6 @@ program
   });
 
 /**
- * @description
  * initialize dev environment (pnpm + claude-code)
  */
 program.command("setup").action(() => {
@@ -35,10 +33,7 @@ program.command("setup").action(() => {
 });
 
 /**
- * @description
- * switch platform & model, outputs export commands
- *
- * usage: eval "$(jrv switch)"
+ * switch platform & model, persists config to ~/.claude/settings.json
  */
 program
   .command("switch")
@@ -48,7 +43,6 @@ program
   });
 
 /**
- * @description
  * like `rm -rf`
  */
 program

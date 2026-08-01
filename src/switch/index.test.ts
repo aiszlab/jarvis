@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // hoisted mocks must come before the dynamic import
-const { inputMock, selectMock } = vi.hoisted(() => ({
+const { inputMock, selectMock, existsSyncMock, readFileSyncMock, writeFileSyncMock } = vi.hoisted(() => ({
   inputMock: vi.fn(),
   selectMock: vi.fn(),
+  existsSyncMock: vi.fn(),
+  readFileSyncMock: vi.fn(),
+  writeFileSyncMock: vi.fn(),
 }));
 
 vi.mock("@inquirer/prompts", () => ({
@@ -11,78 +14,73 @@ vi.mock("@inquirer/prompts", () => ({
   input: inputMock,
 }));
 
-import { collectExistingEnv, collectInputs, switchPlatform } from "./index.js";
+vi.mock("node:fs", () => ({
+  existsSync: existsSyncMock,
+  readFileSync: readFileSyncMock,
+  writeFileSync: writeFileSyncMock,
+}));
+
+vi.mock("node:os", () => ({
+  homedir: () => "/home/testuser",
+}));
+
+import { collectInputs, readSettings, writeSettings, switchPlatform } from "./index.js";
 
 // ---------------------------------------------------------------------------
-// collectExistingEnv
+// readSettings
 // ---------------------------------------------------------------------------
-describe("collectExistingEnv", () => {
-  let originalEnv: NodeJS.ProcessEnv;
-
+describe("readSettings", () => {
   beforeEach(() => {
-    originalEnv = { ...process.env };
+    existsSyncMock.mockReset();
+    readFileSyncMock.mockReset();
   });
 
-  afterEach(() => {
-    process.env = originalEnv;
-  });
-
-  const ALL_PRESET_KEYS = [
-    "ANTHROPIC_BASE_URL",
-    "ANTHROPIC_MODEL",
-    "ANTHROPIC_DEFAULT_SONNET_MODEL",
-    "ANTHROPIC_DEFAULT_OPUS_MODEL",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL",
-    "CLAUDE_CODE_SUBAGENT_MODEL",
-    "CLAUDE_CODE_EFFORT_LEVEL",
-  ];
-
-  it("returns empty object when no matching env vars are set", () => {
-    for (const key of ALL_PRESET_KEYS) {
-      delete process.env[key];
-    }
-
-    const result = collectExistingEnv("claude-code");
+  it("returns empty object when settings file does not exist", () => {
+    existsSyncMock.mockReturnValue(false);
+    const result = readSettings();
     expect(result).toEqual({});
   });
 
-  it("collects currently set env vars that match preset keys", () => {
-    process.env.ANTHROPIC_MODEL = "custom-model";
-    process.env.CLAUDE_CODE_EFFORT_LEVEL = "low";
-
-    const result = collectExistingEnv("claude-code");
-
-    expect(result.ANTHROPIC_MODEL).toBe("custom-model");
-    expect(result.CLAUDE_CODE_EFFORT_LEVEL).toBe("low");
+  it("parses and returns existing settings", () => {
+    existsSyncMock.mockReturnValue(true);
+    readFileSyncMock.mockReturnValue(
+      JSON.stringify({ env: { ANTHROPIC_MODEL: "claude-sonnet-5" } }),
+    );
+    const result = readSettings();
+    expect(result).toEqual({ env: { ANTHROPIC_MODEL: "claude-sonnet-5" } });
   });
 
-  it("returns all matching preset keys when all are set", () => {
-    for (const key of ALL_PRESET_KEYS) {
-      process.env[key] = `val-${key}`;
-    }
+  it("returns empty object and warns on invalid JSON", () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    existsSyncMock.mockReturnValue(true);
+    readFileSyncMock.mockReturnValue("not valid json {{{");
 
-    const result = collectExistingEnv("claude-code");
+    const result = readSettings();
+    expect(result).toEqual({});
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining("failed to parse"),
+    );
+    warnSpy.mockRestore();
+  });
+});
 
-    expect(Object.keys(result)).toHaveLength(ALL_PRESET_KEYS.length);
-    for (const key of ALL_PRESET_KEYS) {
-      expect(result[key]).toBe(`val-${key}`);
-    }
+// ---------------------------------------------------------------------------
+// writeSettings
+// ---------------------------------------------------------------------------
+describe("writeSettings", () => {
+  beforeEach(() => {
+    writeFileSyncMock.mockReset();
   });
 
-  it("skips env keys not in any model preset", () => {
-    process.env.UNRELATED_KEY = "should-not-appear";
+  it("writes settings to ~/.claude/settings.json as formatted JSON", () => {
+    const settings = { env: { ANTHROPIC_MODEL: "test-model" } };
+    writeSettings(settings);
 
-    const result = collectExistingEnv("claude-code");
-
-    expect(result).not.toHaveProperty("UNRELATED_KEY");
-  });
-
-  it("only picks up keys from env, not from inputs config", () => {
-    // ANTHROPIC_AUTH_TOKEN is in `inputs`, not in `env`
-    process.env.ANTHROPIC_AUTH_TOKEN = "token-value";
-    const result = collectExistingEnv("claude-code");
-    // inputs keys should not appear
-    expect(result).not.toHaveProperty("ANTHROPIC_AUTH_TOKEN");
+    expect(writeFileSyncMock).toHaveBeenCalledTimes(1);
+    expect(writeFileSyncMock).toHaveBeenCalledWith(
+      "/home/testuser/.claude/settings.json",
+      JSON.stringify(settings, null, 2) + "\n",
+    );
   });
 });
 
@@ -165,6 +163,9 @@ describe("switchPlatform", () => {
     consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     selectMock.mockReset();
     inputMock.mockReset();
+    existsSyncMock.mockReset();
+    readFileSyncMock.mockReset();
+    writeFileSyncMock.mockReset();
     originalEnv = { ...process.env };
   });
 
@@ -173,88 +174,116 @@ describe("switchPlatform", () => {
     process.env = originalEnv;
   });
 
-  it("outputs export commands for the selected platform & model", async () => {
-    // step 1: choose platform
+  const PRESET_ENV = {
+    ANTHROPIC_BASE_URL: "https://api.deepseek.com/anthropic",
+    ANTHROPIC_MODEL: "deepseek-v4-pro[1m]",
+    ANTHROPIC_DEFAULT_SONNET_MODEL: "deepseek-v4-pro[1m]",
+    ANTHROPIC_DEFAULT_OPUS_MODEL: "deepseek-v4-pro[1m]",
+    ANTHROPIC_DEFAULT_HAIKU_MODEL: "deepseek-v4-flash",
+    CLAUDE_CODE_SUBAGENT_MODEL: "deepseek-v4-flash",
+    CLAUDE_CODE_EFFORT_LEVEL: "max",
+  };
+
+  it("writes env vars to settings.json for the selected platform & model", async () => {
     selectMock.mockResolvedValueOnce("claude-code");
-    // step 2: choose model
     selectMock.mockResolvedValueOnce("deepseek-v4");
-    // step 3: input for ANTHROPIC_AUTH_TOKEN
     inputMock.mockResolvedValueOnce("sk-token-123");
 
-    // clear all relevant env keys so only preset + input values appear
-    for (const key of [
-      "ANTHROPIC_BASE_URL",
-      "ANTHROPIC_MODEL",
-      "ANTHROPIC_DEFAULT_SONNET_MODEL",
-      "ANTHROPIC_DEFAULT_OPUS_MODEL",
-      "ANTHROPIC_DEFAULT_HAIKU_MODEL",
-      "CLAUDE_CODE_SUBAGENT_MODEL",
-      "CLAUDE_CODE_EFFORT_LEVEL",
-      "ANTHROPIC_AUTH_TOKEN",
-    ]) {
-      delete process.env[key];
-    }
+    // clear env so the default is empty string
+    delete process.env.ANTHROPIC_AUTH_TOKEN;
+
+    // settings file exists with unrelated keys
+    existsSyncMock.mockReturnValue(true);
+    readFileSyncMock.mockReturnValue(
+      JSON.stringify({ theme: "dark", plugins: [] }),
+    );
 
     await switchPlatform();
 
-    // select called for platform then model
     expect(selectMock).toHaveBeenCalledTimes(2);
-
-    // input called for ANTHROPIC_AUTH_TOKEN
     expect(inputMock).toHaveBeenCalledTimes(1);
     expect(inputMock).toHaveBeenCalledWith({
       message: "Enter your ANTHROPIC_AUTH_TOKEN",
       default: "",
     });
 
-    // verify the export output
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    // verify settings.json was written with merged data
+    expect(writeFileSyncMock).toHaveBeenCalledTimes(1);
+    const [path, content] = writeFileSyncMock.mock.calls[0] as [string, string];
 
-    // preset env values
-    expect(output).toContain(
-      `export ANTHROPIC_BASE_URL="https://api.deepseek.com/anthropic"`,
-    );
-    expect(output).toContain(
-      `export ANTHROPIC_MODEL="deepseek-v4-pro[1m]"`,
-    );
+    expect(path).toBe("/home/testuser/.claude/settings.json");
+    const written = JSON.parse(content);
+
+    // preserves existing top-level keys
+    expect(written.theme).toBe("dark");
+    expect(written.plugins).toEqual([]);
+
+    // preset env vars
+    for (const [key, value] of Object.entries(PRESET_ENV)) {
+      expect(written.env[key]).toBe(value);
+    }
     // user input value
-    expect(output).toContain(`export ANTHROPIC_AUTH_TOKEN="sk-token-123"`);
-    // comment line
-    expect(output).toContain("# switched to Claude Code / DeepSeek V4");
+    expect(written.env.ANTHROPIC_AUTH_TOKEN).toBe("sk-token-123");
+
+    // confirmation message
+    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    expect(output).toContain("switched to Claude Code / DeepSeek V4");
+    expect(output).toContain("/home/testuser/.claude/settings.json");
   });
 
-  it("merges env with priority: inputs > preset > existing", async () => {
-    // Set an existing env value for a key that is also in the preset
-    process.env.ANTHROPIC_MODEL = "existing-model";
-    // The preset has ANTHROPIC_MODEL: "deepseek-v4-pro[1m]" — preset wins over existing
-
+  it("creates new settings file when it does not exist", async () => {
     selectMock.mockResolvedValueOnce("claude-code");
     selectMock.mockResolvedValueOnce("deepseek-v4");
-    // user overrides ANTHROPIC_MODEL via input… but ANTHROPIC_MODEL is in env, not inputs.
-    // We'll just verify the merge order: existing < preset < input.
-    // ANTHROPIC_AUTH_TOKEN is the only input field, so let's set it.
-    inputMock.mockResolvedValueOnce("user-token");
+    inputMock.mockResolvedValueOnce("sk-token");
+
+    existsSyncMock.mockReturnValue(false);
 
     await switchPlatform();
 
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    expect(writeFileSyncMock).toHaveBeenCalledTimes(1);
+    const [, content] = writeFileSyncMock.mock.calls[0] as [string, string];
+    const written = JSON.parse(content);
 
-    // preset overwrites existing — the preset value wins
-    expect(output).toContain(
-      `export ANTHROPIC_MODEL="deepseek-v4-pro[1m]"`,
+    expect(written.env).toBeDefined();
+    expect(written.env.ANTHROPIC_MODEL).toBe("deepseek-v4-pro[1m]");
+  });
+
+  it("merges env with priority: inputs > preset > existing file env", async () => {
+    selectMock.mockResolvedValueOnce("claude-code");
+    selectMock.mockResolvedValueOnce("deepseek-v4");
+    inputMock.mockResolvedValueOnce("user-token");
+
+    existsSyncMock.mockReturnValue(true);
+    // existing settings has some env vars already set
+    readFileSyncMock.mockReturnValue(
+      JSON.stringify({
+        env: {
+          ANTHROPIC_MODEL: "existing-model",
+          SOME_OTHER_VAR: "keep-me",
+        },
+      }),
     );
-    // input value appears
-    expect(output).toContain(`export ANTHROPIC_AUTH_TOKEN="user-token"`);
+
+    await switchPlatform();
+
+    const [, content] = writeFileSyncMock.mock.calls[0] as [string, string];
+    const written = JSON.parse(content);
+
+    // preset overwrites existing env value
+    expect(written.env.ANTHROPIC_MODEL).toBe("deepseek-v4-pro[1m]");
+    // unrelated env var is preserved
+    expect(written.env.SOME_OTHER_VAR).toBe("keep-me");
+    // input value is set
+    expect(written.env.ANTHROPIC_AUTH_TOKEN).toBe("user-token");
   });
 
   it("skips input collection when model has no inputs config", async () => {
-    // Directly test what happens when inputs is undefined (simulate a model
-    // without inputs by mocking a different path).
-    // Since our PLATFORMS only has models with inputs, we test that the
-    // function still works when inputs exist but are resolved.
     selectMock.mockResolvedValueOnce("claude-code");
     selectMock.mockResolvedValueOnce("deepseek-v4");
     inputMock.mockResolvedValue("some-token");
+
+    existsSyncMock.mockReturnValue(true);
+    readFileSyncMock.mockReturnValue("{}");
 
     await switchPlatform();
 
@@ -262,19 +291,67 @@ describe("switchPlatform", () => {
     expect(inputMock).toHaveBeenCalledTimes(1);
   });
 
-  it("preserves existing env values that are not in the preset", async () => {
-    process.env.SOME_RANDOM_VAR = "keep-me";
-
+  it("writes ark-coding-plan preset env vars to settings.json", async () => {
     selectMock.mockResolvedValueOnce("claude-code");
-    selectMock.mockResolvedValueOnce("deepseek-v4");
-    inputMock.mockResolvedValueOnce("token");
+    selectMock.mockResolvedValueOnce("ark-coding-plan");
+    inputMock.mockResolvedValueOnce("ark-token-123");
+
+    existsSyncMock.mockReturnValue(true);
+    readFileSyncMock.mockReturnValue(
+      JSON.stringify({ theme: "dark" }),
+    );
 
     await switchPlatform();
 
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    expect(selectMock).toHaveBeenCalledTimes(2);
+    expect(inputMock).toHaveBeenCalledTimes(1);
+    expect(inputMock).toHaveBeenCalledWith({
+      message: "Enter your ANTHROPIC_AUTH_TOKEN (ark-xxx)",
+      default: "",
+    });
 
-    // existing env not in preset should NOT appear in export output
-    // (collectExistingEnv only picks up keys from model presets)
-    expect(output).not.toContain("SOME_RANDOM_VAR");
+    const [, content] = writeFileSyncMock.mock.calls[0] as [string, string];
+    const written = JSON.parse(content);
+
+    expect(written.theme).toBe("dark");
+    expect(written.env.ANTHROPIC_BASE_URL).toBe("https://ark.cn-beijing.volces.com/api/coding");
+    expect(written.env.ANTHROPIC_MODEL).toBe("ark-code-latest");
+    expect(written.env.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe("ark-code-latest");
+    expect(written.env.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe("ark-code-latest");
+    expect(written.env.ANTHROPIC_DEFAULT_OPUS_MODEL).toBe("ark-code-latest");
+    expect(written.env.CLAUDE_CODE_SUBAGENT_MODEL).toBe("ark-code-latest");
+    expect(written.env.ANTHROPIC_AUTH_TOKEN).toBe("ark-token-123");
+
+    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    expect(output).toContain("switched to Claude Code / Ark Coding Plan");
+  });
+
+  it("does not overwrite existing top-level keys unrelated to env", async () => {
+    selectMock.mockResolvedValueOnce("claude-code");
+    selectMock.mockResolvedValueOnce("deepseek-v4");
+    inputMock.mockResolvedValueOnce("sk-token");
+
+    const existing = {
+      theme: "light",
+      enabledPlugins: { "some-plugin": true },
+      hooks: { PreToolUse: [] },
+      env: { EXISTING_KEY: "existing-value" },
+    };
+
+    existsSyncMock.mockReturnValue(true);
+    readFileSyncMock.mockReturnValue(JSON.stringify(existing));
+
+    await switchPlatform();
+
+    const [, content] = writeFileSyncMock.mock.calls[0] as [string, string];
+    const written = JSON.parse(content);
+
+    expect(written.theme).toBe("light");
+    expect(written.enabledPlugins).toEqual({ "some-plugin": true });
+    expect(written.hooks).toEqual({ PreToolUse: [] });
+    // existing env preserved
+    expect(written.env.EXISTING_KEY).toBe("existing-value");
+    // new env added
+    expect(written.env.ANTHROPIC_MODEL).toBe("deepseek-v4-pro[1m]");
   });
 });

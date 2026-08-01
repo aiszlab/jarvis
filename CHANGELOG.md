@@ -5,6 +5,7 @@
 ### Patch Changes
 
 - changesets -v 选项映射为 version 子命令传入 add
+- `jrv switch` 改为直接修改 `~/.claude/settings.json`，不再输出 shell export 命令
 
 ## 1.0.4
 

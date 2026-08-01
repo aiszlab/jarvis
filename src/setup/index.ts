@@ -1,7 +1,6 @@
 import spawn from "@npmcli/promise-spawn";
 
 /**
- * @description
  * check if a command is installed
  */
 async function isInstalled(command: string): Promise<boolean> {
@@ -14,7 +13,6 @@ async function isInstalled(command: string): Promise<boolean> {
 }
 
 /**
- * @description
  * initialize dev environment
  */
 export const setupDev = async () => {

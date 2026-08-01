@@ -2,7 +2,6 @@ import { createRequire } from "module";
 import spawn from "@npmcli/promise-spawn";
 
 /**
- * @description
  * default handler
  */
 export const add = async ({ command }: { command?: string }) => {
