@@ -5,6 +5,7 @@ import { setupDev } from "./setup/index.js";
 import { remove } from "./remove/index.js";
 import { switchPlatform } from "./switch/index.js";
 import { kill } from "./kill/index.js";
+import { useEnv } from "./use/index.js";
 
 const program = new Command();
 
@@ -72,6 +73,19 @@ program
   })
   .action(async (port?: number) => {
     await kill(port);
+  });
+
+/**
+ * @description
+ * load environment variables from jarvis.settings.local.json interactively
+ * and output export statements for shell eval.
+ *
+ * usage: `eval "$(jrv use)"`
+ */
+program
+  .command("use")
+  .action(async () => {
+    await useEnv();
   });
 
 program.parse();
