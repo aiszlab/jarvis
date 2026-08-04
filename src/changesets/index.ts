@@ -14,8 +14,6 @@ export const add = async ({ command, options }: { command?: string; options?: { 
   } else if (options?.message) {
     const message = await generateChangesetMessage()
 
-    console.log('message-=-----', message)
-
     if (message) {
       args.push('--message', message)
     }
@@ -38,20 +36,18 @@ const generateChangesetMessage = async () => {
 
 比对上次发版 commit 至当前工作区差异内容，生成 changeset summary
 
-# 约束
+# 约束条件
 
-- 只输出 changeset summary 内容，不要输出其他内容
+- 仅生成 changeset summary，禁止生成任何其他内容
 
 # 参考案例
 
-\`\`\`
-- 新增 \`jrv setup\`，自动安装 pnpm 与 claude-code，初始化开发环境
-- 集成 \`vitest\`，添加 switch 模块单元测试
-- 修复 \`kill\` 执行失败，没有在终端展示错误消息 Bug
-\`\`\`
+1. 新增 \`jrv setup\`，自动安装 pnpm 与 claude-code，初始化开发环境
+2. 集成 \`vitest\`，添加 switch 模块单元测试
+3. 修复 \`kill\` 执行失败，没有在终端展示错误消息 Bug
 `
 
-  console.log('Generating changeset message with Claude...')
+  console.log('Generating changeset summary with Claude...')
 
   const { stdout: message } = await spawn('claude', ['-p', prompt], {
     stdio: 'pipe'
