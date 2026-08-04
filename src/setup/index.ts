@@ -2,7 +2,7 @@ import spawn from "@npmcli/promise-spawn";
 import { existsSync, writeFileSync, appendFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const CONFIG_FILE = "jarvis.settings.local.json";
+const CONFIG_FILE = ".jarvis.settings.json";
 
 /**
  * check if a command is installed

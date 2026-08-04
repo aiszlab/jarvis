@@ -79,7 +79,7 @@ program
 
 /**
  * @description
- * load environment variables from jarvis.settings.local.json interactively
+ * load environment variables from .jarvis.settings.json interactively
  * and output export statements for shell eval.
  *
  * usage: `eval "$(jrv use)"`
