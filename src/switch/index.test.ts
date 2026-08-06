@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // hoisted mocks must come before the dynamic import
-const { inputMock, selectMock, existsSyncMock, readFileSyncMock, writeFileSyncMock } = vi.hoisted(() => ({
+const {
+  inputMock,
+  selectMock,
+  existsSyncMock,
+  readFileSyncMock,
+  writeFileSyncMock,
+} = vi.hoisted(() => ({
   inputMock: vi.fn(),
   selectMock: vi.fn(),
   existsSyncMock: vi.fn(),
@@ -24,7 +30,12 @@ vi.mock("node:os", () => ({
   homedir: () => "/home/testuser",
 }));
 
-import { collectInputs, readSettings, writeSettings, switchPlatform } from "./index.js";
+import {
+  collectInputs,
+  readSettings,
+  writeSettings,
+  switchPlatform,
+} from "./index.js";
 
 // ---------------------------------------------------------------------------
 // readSettings
@@ -93,9 +104,7 @@ describe("collectInputs", () => {
   });
 
   it("calls input() for each field and returns collected values", async () => {
-    inputMock
-      .mockResolvedValueOnce("sk-abc123")
-      .mockResolvedValueOnce("gpt-5");
+    inputMock.mockResolvedValueOnce("sk-abc123").mockResolvedValueOnce("gpt-5");
 
     const result = await collectInputs({
       API_KEY: { message: "Enter API key" },
@@ -226,7 +235,7 @@ describe("switchPlatform", () => {
     expect(written.env.ANTHROPIC_AUTH_TOKEN).toBe("sk-token-123");
 
     // confirmation message
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = consoleLogSpy.mock.calls.map((c: any) => c[0]).join("\n");
     expect(output).toContain("switched to Claude Code / DeepSeek V4");
     expect(output).toContain("/home/testuser/.claude/settings.json");
   });
@@ -297,9 +306,7 @@ describe("switchPlatform", () => {
     inputMock.mockResolvedValueOnce("ark-token-123");
 
     existsSyncMock.mockReturnValue(true);
-    readFileSyncMock.mockReturnValue(
-      JSON.stringify({ theme: "dark" }),
-    );
+    readFileSyncMock.mockReturnValue(JSON.stringify({ theme: "dark" }));
 
     await switchPlatform();
 
@@ -314,7 +321,9 @@ describe("switchPlatform", () => {
     const written = JSON.parse(content);
 
     expect(written.theme).toBe("dark");
-    expect(written.env.ANTHROPIC_BASE_URL).toBe("https://ark.cn-beijing.volces.com/api/coding");
+    expect(written.env.ANTHROPIC_BASE_URL).toBe(
+      "https://ark.cn-beijing.volces.com/api/coding",
+    );
     expect(written.env.ANTHROPIC_MODEL).toBe("ark-code-latest");
     expect(written.env.ANTHROPIC_DEFAULT_HAIKU_MODEL).toBe("ark-code-latest");
     expect(written.env.ANTHROPIC_DEFAULT_SONNET_MODEL).toBe("ark-code-latest");
@@ -322,7 +331,7 @@ describe("switchPlatform", () => {
     expect(written.env.CLAUDE_CODE_SUBAGENT_MODEL).toBe("ark-code-latest");
     expect(written.env.ANTHROPIC_AUTH_TOKEN).toBe("ark-token-123");
 
-    const output = consoleLogSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = consoleLogSpy.mock.calls.map((c: any) => c[0]).join("\n");
     expect(output).toContain("switched to Claude Code / Ark Coding Plan");
   });
 
