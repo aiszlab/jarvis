@@ -30,7 +30,8 @@ program
   })
 
 /**
- * initialize dev environment (pnpm + claude-code)
+ * initialize dev environment (pnpm + claude-code), scaffold config file,
+ * and install shell integration (source jrv.sh into ~/.zshrc / ~/.bashrc)
  */
 program.command('setup').action(() => {
   setupDev()
@@ -79,10 +80,11 @@ program
 
 /**
  * @description
- * load environment variables from .jarvis.settings.json interactively
+ * load environment variables from .jarvis/settings.json interactively
  * and output export statements for shell eval.
  *
- * usage: `eval "$(jrv use)"`
+ * usage: just run `jrv use` — the shell wrapper handles eval automatically.
+ * (requires shell integration via `jrv setup`)
  */
 program.command('use').action(async () => {
   await useEnv()

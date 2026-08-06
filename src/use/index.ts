@@ -11,14 +11,14 @@ export function shellEscape(value: string): string {
 }
 
 /**
- * read `.jarvis.settings.json` from `cwd` and return the `env` object.
+ * read `.jarvis/settings.json` from `cwd` and return the `env` object.
  * throws when the file is missing, cannot be parsed, or has no `env` field.
  */
 export function readLocalConfig(cwd: string): Record<string, string> {
-  const configPath = join(cwd, '.jarvis.settings.json')
+  const configPath = join(cwd, '.jarvis', 'settings.json')
 
   if (!existsSync(configPath)) {
-    throw new Error(`${configPath} not found. Create a .jarvis.settings.json to use this feature.`)
+    throw new Error(`${configPath} not found. Run \`jrv setup\` to create it.`)
   }
 
   let parsed: Record<string, unknown>
@@ -38,10 +38,10 @@ export function readLocalConfig(cwd: string): Record<string, string> {
 
 /**
  * @description
- * load environment variables from .jarvis.settings.json interactively
+ * load environment variables from .jarvis/settings.json interactively
  * and output `export` statements to stdout.
  *
- * usage: `eval "$(jrv use)"`
+ * usage: `jrv use` (requires shell integration)
  */
 export const useEnv = async (cwd: string = process.cwd()) => {
   let env: Record<string, string>

@@ -8,4 +8,4 @@ node_modules
 .idea
 .vscode
 
-.jarvis.settings.json
+.jarvis/

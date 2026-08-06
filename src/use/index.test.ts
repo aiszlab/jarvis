@@ -205,7 +205,7 @@ describe("useEnv", () => {
     await useEnv();
 
     expect(existsSyncMock).toHaveBeenCalledWith(
-      "/home/testuser/project/.jarvis.settings.json",
+      "/home/testuser/project/.jarvis/settings.json",
     );
   });
 
