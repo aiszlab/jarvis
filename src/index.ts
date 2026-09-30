@@ -6,11 +6,14 @@ import { remove } from './remove/index.js'
 import { switchPlatform } from './switch/index.js'
 import { kill } from './kill/index.js'
 import { useEnv } from './use/index.js'
+import { unsleep } from './unsleep/index.js'
+import { cleanup } from './cleanup/index.js'
 
 const program = new Command()
 
 /**
- * use changesets
+ * @zh 使用 changesets 管理版本与变更记录
+ * @en use changesets to manage versions and changelogs
  */
 program
   .command('changesets')
@@ -30,15 +33,18 @@ program
   })
 
 /**
- * initialize dev environment (pnpm + claude-code), scaffold config file,
- * and install shell integration (source jrv.sh into ~/.zshrc / ~/.bashrc)
+ * @zh 初始化开发环境（pnpm + claude-code），生成配置文件，
+ * 并安装 shell 集成（将 jarvis.sh source 到 ~/.zshrc / ~/.bashrc）
+ * @en initialize dev environment (pnpm + claude-code), scaffold config file,
+ * and install shell integration (source jarvis.sh into ~/.zshrc / ~/.bashrc)
  */
 program.command('setup').action(() => {
   setupDev()
 })
 
 /**
- * switch platform & model, persists config to ~/.claude/settings.json
+ * @zh 交互式切换平台与模型，配置持久化到 ~/.claude/settings.json
+ * @en switch platform & model, persists config to ~/.claude/settings.json
  */
 program
   .command('switch')
@@ -48,7 +54,8 @@ program
   })
 
 /**
- * like `rm -rf`
+ * @zh 类似 `rm -rf`
+ * @en like `rm -rf`
  */
 program
   .command('remove')
@@ -59,8 +66,8 @@ program
   })
 
 /**
- * @description
- * kill the process listening on a given port
+ * @zh 杀掉占用指定端口的进程
+ * @en kill the process listening on a given port
  *
  * usage: `jrv kill 8080` or `jrv kill` (interactive prompt)
  */
@@ -79,9 +86,9 @@ program
   })
 
 /**
- * @description
- * load environment variables from .jarvis/settings.json interactively
- * and output export statements for shell eval.
+ * @zh 交互式选择 .jarvis/settings.json 中的环境变量，输出 export 语句供 shell eval
+ * @en load environment variables from .jarvis/settings.json interactively
+ * and output export statements for shell eval
  *
  * usage: just run `jrv use` — the shell wrapper handles eval automatically.
  * (requires shell integration via `jrv setup`)
@@ -89,5 +96,33 @@ program
 program.command('use').action(async () => {
   await useEnv()
 })
+
+/**
+ * @zh 保持 Mac 不休眠（阻止屏幕熄灭与系统空闲休眠），Ctrl+C 恢复
+ * @en keep the machine awake (prevent display + system sleep) until Ctrl+C
+ *
+ * usage: `jrv unsleep` (macOS only)
+ */
+program.command('unsleep').action(async () => {
+  await unsleep()
+})
+
+/**
+ * @zh 清理可安全删除的缓存（用户缓存、日志、包管理器缓存、废纸篓等），
+ * 交互式多选；`-d` 仅预览不删除，`-y` 跳过提示直接清理全部
+ * @en clean safely deletable caches (user caches, logs, package manager caches,
+ * trash, ...) with an interactive multi-select; `-d` previews sizes without
+ * deleting, `-y` skips prompts and cleans all detected targets
+ *
+ * usage: `jrv cleanup` or `jrv cleanup -d` (macOS only)
+ */
+program
+  .command('cleanup')
+  .alias('cl')
+  .option('-d, --dry-run', 'show sizes without deleting anything')
+  .option('-y, --yes', 'clean all detected targets without prompting')
+  .action(async (options: { dryRun?: boolean; yes?: boolean }) => {
+    await cleanup(options)
+  })
 
 program.parse()

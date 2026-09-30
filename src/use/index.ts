@@ -3,7 +3,9 @@ import { readFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 
 /**
- * escape a value for use in a shell single-quoted string.
+ * @zh 转义值以用于 shell 单引号字符串，将每个 `'` 替换为 `'\''`，
+ * 使值可以安全地用于 `export KEY='...'`
+ * @en escape a value for use in a shell single-quoted string.
  * replaces every `'` with `'\''` so the value is safe inside `export KEY='...'`.
  */
 export function shellEscape(value: string): string {
@@ -11,7 +13,9 @@ export function shellEscape(value: string): string {
 }
 
 /**
- * read `.jarvis/settings.json` from `cwd` and return the `env` object.
+ * @zh 读取 `cwd` 下的 `.jarvis/settings.json` 并返回 `env` 对象。
+ * 文件不存在、无法解析、或没有 `env` 字段时抛错
+ * @en read `.jarvis/settings.json` from `cwd` and return the `env` object.
  * throws when the file is missing, cannot be parsed, or has no `env` field.
  */
 export function readLocalConfig(cwd: string): Record<string, string> {
@@ -37,9 +41,9 @@ export function readLocalConfig(cwd: string): Record<string, string> {
 }
 
 /**
- * @description
- * load environment variables from .jarvis/settings.json interactively
- * and output `export` statements to stdout.
+ * @zh 交互式加载 .jarvis/settings.json 中的环境变量，输出 `export` 语句到 stdout
+ * @en load environment variables from .jarvis/settings.json interactively
+ * and output `export` statements to stdout
  *
  * usage: `jrv use` (requires shell integration)
  */

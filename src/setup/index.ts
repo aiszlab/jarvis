@@ -5,11 +5,15 @@ import { join, dirname } from "node:path"
 
 const CONFIG_FILE = ".jarvis/settings.json"
 
-/** single-line shell snippet that locates jarvis.sh relative to the jrv binary */
+/**
+ * @zh 单行 shell 片段：相对 jrv 二进制文件定位 jarvis.sh
+ * @en single-line shell snippet that locates jarvis.sh relative to the jrv binary
+ */
 const SOURCE_LINE = `source "\$(dirname "\$(realpath "\$(command -v jrv)")")/../jarvis.sh"`
 
 /**
- * check if a command is installed
+ * @zh 检查某个命令是否已安装
+ * @en check if a command is installed
  */
 async function isInstalled(command: string): Promise<boolean> {
   try {
@@ -21,7 +25,9 @@ async function isInstalled(command: string): Promise<boolean> {
 }
 
 /**
- * ensure .jarvis/settings.json exists in cwd, and add .jarvis/ to .gitignore
+ * @zh 确保 cwd 下存在 .jarvis/settings.json；若 git 会追踪该目录，
+ * 将 .jarvis/ 加入 .gitignore
+ * @en ensure .jarvis/settings.json exists in cwd, and add .jarvis/ to .gitignore
  * if git would otherwise track it.
  */
 async function initConfig(cwd: string): Promise<void> {
@@ -71,7 +77,9 @@ async function initConfig(cwd: string): Promise<void> {
 }
 
 /**
- * detect the user's shell rc file path.
+ * @zh 检测用户的 shell rc 文件路径。
+ * 返回 ~/.zshrc、~/.bashrc 的完整路径，默认 ~/.zshrc
+ * @en detect the user's shell rc file path.
  * returns the full path to ~/.zshrc, ~/.bashrc, or ~/.zshrc as default.
  */
 function detectRcFile(): { shell: string; rcPath: string } {
@@ -86,7 +94,9 @@ function detectRcFile(): { shell: string; rcPath: string } {
 }
 
 /**
- * add a single `source` line to the user's shell rc file if not already present.
+ * @zh 若尚未存在，向用户的 shell rc 文件追加一行 `source`。
+ * 使用 `command -v jrv` + `realpath` 在 shell 运行时相对二进制定位 jarvis.sh
+ * @en add a single `source` line to the user's shell rc file if not already present.
  * uses `command -v jrv` + `realpath` to locate jarvis.sh relative to the binary at shell time.
  */
 function installShellIntegration(rcPath: string): void {
@@ -103,7 +113,8 @@ function installShellIntegration(rcPath: string): void {
 }
 
 /**
- * initialize dev environment
+ * @zh 初始化开发环境
+ * @en initialize dev environment
  */
 export const setupDev = async () => {
   // 1. install pnpm

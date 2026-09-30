@@ -2,7 +2,8 @@ import { createRequire } from 'module'
 import spawn from '@npmcli/promise-spawn'
 
 /**
- * default handler
+ * @zh 默认处理逻辑
+ * @en default handler
  */
 export const add = async ({ command, options }: { command?: string; options?: { message?: boolean } }) => {
   const require = createRequire(import.meta.url)
@@ -28,7 +29,8 @@ export const add = async ({ command, options }: { command?: string; options?: { 
 }
 
 /**
- * 利用 claude 分析 git diff 并生成 changeset markdown 文件
+ * @zh 利用 claude 分析 git diff 并生成 changeset markdown 文件
+ * @en use claude to analyze the git diff and generate a changeset markdown file
  */
 const generateChangesetMessage = async () => {
   const prompt = `
