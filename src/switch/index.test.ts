@@ -7,12 +7,14 @@ const {
   existsSyncMock,
   readFileSyncMock,
   writeFileSyncMock,
+  mkdirSyncMock,
 } = vi.hoisted(() => ({
   inputMock: vi.fn(),
   selectMock: vi.fn(),
   existsSyncMock: vi.fn(),
   readFileSyncMock: vi.fn(),
   writeFileSyncMock: vi.fn(),
+  mkdirSyncMock: vi.fn(),
 }));
 
 vi.mock("@inquirer/prompts", () => ({
@@ -24,6 +26,7 @@ vi.mock("node:fs", () => ({
   existsSync: existsSyncMock,
   readFileSync: readFileSyncMock,
   writeFileSync: writeFileSyncMock,
+  mkdirSync: mkdirSyncMock,
 }));
 
 vi.mock("node:os", () => ({
@@ -81,6 +84,7 @@ describe("readSettings", () => {
 describe("writeSettings", () => {
   beforeEach(() => {
     writeFileSyncMock.mockReset();
+    mkdirSyncMock.mockReset();
   });
 
   it("writes settings to ~/.claude/settings.json as formatted JSON", () => {
@@ -92,6 +96,15 @@ describe("writeSettings", () => {
       "/home/testuser/.claude/settings.json",
       JSON.stringify(settings, null, 2) + "\n",
     );
+  });
+
+  it("creates the ~/.claude directory before writing", () => {
+    writeSettings({ env: {} });
+
+    expect(mkdirSyncMock).toHaveBeenCalledTimes(1);
+    expect(mkdirSyncMock).toHaveBeenCalledWith("/home/testuser/.claude", {
+      recursive: true,
+    });
   });
 });
 

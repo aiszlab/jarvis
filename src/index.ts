@@ -108,11 +108,17 @@ program.command('unsleep').action(async () => {
 })
 
 /**
- * @zh 清理可安全删除的缓存（用户缓存、日志、包管理器缓存、废纸篓等），
- * 交互式多选；`-d` 仅预览不删除，`-y` 跳过提示直接清理全部
- * @en clean safely deletable caches (user caches, logs, package manager caches,
- * trash, ...) with an interactive multi-select; `-d` previews sizes without
- * deleting, `-y` skips prompts and cleans all detected targets
+ * @zh 清理 Mac 上的垃圾文件（包管理器缓存、Xcode DerivedData、废纸篓、
+ * 用户缓存/日志、主目录下各项目的 node_modules 等），
+ * 按 safe / moderate / risky 分级交互式多选；
+ * `-d` 仅预览不删除，`-y` 跳过提示直接清理全部（不含 risky），
+ * `-r` 将 risky 级目标（如 iOS 模拟器数据）纳入
+ * @en clean junk files on macOS (package manager caches, Xcode DerivedData,
+ * trash, user caches / logs, project node_modules under home, ...) with a
+ * safe / moderate / risky tiered interactive multi-select; `-d` previews
+ * sizes without deleting, `-y` skips prompts and cleans all detected targets
+ * (risky excluded), `-r` includes risky-tier targets (e.g. CoreSimulator
+ * devices)
  *
  * usage: `jrv cleanup` or `jrv cleanup -d` (macOS only)
  */
@@ -121,7 +127,8 @@ program
   .alias('cl')
   .option('-d, --dry-run', 'show sizes without deleting anything')
   .option('-y, --yes', 'clean all detected targets without prompting')
-  .action(async (options: { dryRun?: boolean; yes?: boolean }) => {
+  .option('-r, --risky', 'include risky targets (deletes user data, e.g. CoreSimulator devices)')
+  .action(async (options: { dryRun?: boolean; yes?: boolean; risky?: boolean }) => {
     await cleanup(options)
   })
 

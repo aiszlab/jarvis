@@ -1,7 +1,7 @@
 import { select, input } from "@inquirer/prompts";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
 
@@ -90,10 +90,11 @@ export function readSettings(): Record<string, unknown> {
 }
 
 /**
- * @zh 将配置写入 ~/.claude/settings.json
- * @en write settings to ~/.claude/settings.json
+ * @zh 将配置写入 ~/.claude/settings.json（文件或目录不存在时默认创建）
+ * @en write settings to ~/.claude/settings.json, creating the file & directory by default
  */
 export function writeSettings(settings: Record<string, unknown>): void {
+  mkdirSync(dirname(SETTINGS_PATH), { recursive: true });
   writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2) + "\n");
 }
 
