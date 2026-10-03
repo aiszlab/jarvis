@@ -31,16 +31,14 @@ program
   .command('changesets')
   .alias('cs')
   .option('-v, --version', '修订 changesets 版本')
-  .option('-m, --message', '自动生成 changesets message')
   .argument('[command]')
-  .action((command?: string, options?: { version?: boolean; message?: boolean }) => {
+  .action((command?: string, options?: { version?: boolean }) => {
     add({
       command: new Set([command, options?.version ? 'version' : void 0])
         .values()
         .filter((i) => !!i)
         .toArray()
         .at(0),
-      options
     })
   })
 
