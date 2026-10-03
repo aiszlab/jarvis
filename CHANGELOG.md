@@ -1,5 +1,18 @@
 # @aiszlab/jarvis
 
+## 1.1.1
+
+### Patch Changes
+
+- f086f23: 新增 `jrv unsleep` 命令，在 macOS 上阻止屏幕熄灭和系统空闲休眠，按 `Ctrl+C` 恢复正常休眠行为。
+
+  改进 `jrv switch`，当 `~/.claude/settings.json` 或其目录不存在时自动创建。
+
+  更新 `jrv kill` 和相关命令文档，补充中英文说明；设置 Node.js 运行版本要求，并限制发布包包含的文件。
+
+- 5ac13e2: 1. 新增 `jrv use` 命令，交互式选择环境变量并输出 `export` 语句，配合 `eval "$(jrv use)"` 使用 2. 新增 `jrv changesets -m` 选项，自动调用 Claude 分析 git diff 生成 changeset summary 3. 扩展 `jrv setup`，自动初始化 `.jarvis.settings.json` 配置文件并写入 `.gitignore` 4. 统一代码风格，双引号改单引号、移除分号
+- 0080f8c: 1. 新增 `jrv cleanup`（别名 `cl`）命令，交互式清理 macOS 安全缓存（用户缓存、日志、npm/pnpm/Yarn/Homebrew/pip 缓存、Xcode DerivedData、废纸篓），支持 `-d` 预览与 `-y` 全量清理
+
 ## 1.1.0
 
 ### Minor Changes

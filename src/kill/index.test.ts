@@ -114,7 +114,7 @@ describe("killPort", () => {
     expect(killSpy).toHaveBeenCalledWith(1234, "SIGKILL");
     expect(killSpy).toHaveBeenCalledWith(5678, "SIGKILL");
 
-    const output = logSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = logSpy.mock.calls.map((c: any) => c[0]).join("\n");
     expect(output).toContain("killed process 1234 on port 8080");
     expect(output).toContain("killed process 5678 on port 8080");
   });
@@ -126,7 +126,7 @@ describe("killPort", () => {
 
     expect(killSpy).not.toHaveBeenCalled();
 
-    const output = logSpy.mock.calls.map((c) => c[0]).join("\n");
+    const output = logSpy.mock.calls.map((c: any) => c[0]).join("\n");
     expect(output).toContain("no process found on port 8080");
   });
 });

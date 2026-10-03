@@ -1,12 +1,13 @@
 import { select, input } from "@inquirer/prompts";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 
 const SETTINGS_PATH = join(homedir(), ".claude", "settings.json");
 
 /**
- * an input field the user must fill in manually
+ * @zh 需要用户手动填写的输入字段
+ * @en an input field the user must fill in manually
  */
 interface InputField {
   message: string;
@@ -14,18 +15,20 @@ interface InputField {
 }
 
 /**
- * a model preset with static env vars and interactive inputs
+ * @zh 带静态环境变量与交互式输入的模型预设
+ * @en a model preset with static env vars and interactive inputs
  */
 interface ModelPreset {
   label: string;
-  /** static env vars — written directly */
+  /** @zh 静态环境变量（直接写入） @en static env vars — written directly */
   env: Record<string, string>;
-  /** interactive inputs — user is prompted to fill in each one */
+  /** @zh 交互式输入（逐个提示用户填写） @en interactive inputs — user is prompted to fill in each one */
   inputs?: Record<string, InputField>;
 }
 
 /**
- * model presets for each platform
+ * @zh 各平台的模型预设
+ * @en model presets for each platform
  */
 const PLATFORMS: Record<string, { label: string; models: Record<string, ModelPreset> }> = {
   "claude-code": {
@@ -71,7 +74,8 @@ const PLATFORMS: Record<string, { label: string; models: Record<string, ModelPre
 type PlatformKey = keyof typeof PLATFORMS;
 
 /**
- * read existing ~/.claude/settings.json, returns parsed object or empty object
+ * @zh 读取 ~/.claude/settings.json，返回解析后的对象或空对象
+ * @en read existing ~/.claude/settings.json, returns parsed object or empty object
  */
 export function readSettings(): Record<string, unknown> {
   if (!existsSync(SETTINGS_PATH)) {
@@ -86,14 +90,17 @@ export function readSettings(): Record<string, unknown> {
 }
 
 /**
- * write settings to ~/.claude/settings.json
+ * @zh 将配置写入 ~/.claude/settings.json（文件或目录不存在时默认创建）
+ * @en write settings to ~/.claude/settings.json, creating the file & directory by default
  */
 export function writeSettings(settings: Record<string, unknown>): void {
+  mkdirSync(dirname(SETTINGS_PATH), { recursive: true });
   writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2) + "\n");
 }
 
 /**
- * iterate over the model's `inputs` config and prompt the user for each field
+ * @zh 遍历模型的 `inputs` 配置，逐个提示用户填写
+ * @en iterate over the model's `inputs` config and prompt the user for each field
  */
 export async function collectInputs(inputs: Record<string, InputField>): Promise<Record<string, string>> {
   const result: Record<string, string> = {};
@@ -107,7 +114,8 @@ export async function collectInputs(inputs: Record<string, InputField>): Promise
 }
 
 /**
- * switch platform & model, persist config to ~/.claude/settings.json
+ * @zh 切换平台与模型，配置持久化到 ~/.claude/settings.json
+ * @en switch platform & model, persist config to ~/.claude/settings.json
  */
 export const switchPlatform = async () => {
   // step 1 — choose platform
