@@ -13,7 +13,9 @@ import { cleanup } from './cleanup/index.js'
 const program = new Command()
 const { version } = pkg
 
-program.version(version, '-v, --version')
+program
+  .enablePositionalOptions()
+  .version(version, '-v, --version')
 
 /**
  * @zh 显示当前工具包版本
@@ -33,13 +35,7 @@ program
   .option('-v, --version', '修订 changesets 版本')
   .argument('[command]')
   .action((command?: string, options?: { version?: boolean }) => {
-    add({
-      command: new Set([command, options?.version ? 'version' : void 0])
-        .values()
-        .filter((i) => !!i)
-        .toArray()
-        .at(0),
-    })
+    add({ command, options })
   })
 
 /**

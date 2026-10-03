@@ -45,4 +45,14 @@ describe('changesets', () => {
       { stdio: 'inherit' }
     )
   })
+
+  it('runs the version subcommand when the version option is enabled', async () => {
+    await add({ options: { version: true } })
+
+    expect(spawnMock).toHaveBeenCalledWith(
+      'node',
+      ['/project/node_modules/@changesets/cli/bin.js', 'version'],
+      { stdio: 'inherit' }
+    )
+  })
 })
