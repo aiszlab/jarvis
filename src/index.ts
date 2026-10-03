@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command, InvalidArgumentError } from 'commander'
+import pkg from '../package.json' with { type: 'json' }
 import { add } from './changesets/index.js'
 import { setupDev } from './setup/index.js'
 import { remove } from './remove/index.js'
@@ -10,6 +11,17 @@ import { unsleep } from './unsleep/index.js'
 import { cleanup } from './cleanup/index.js'
 
 const program = new Command()
+const { version } = pkg
+
+program.version(version, '-v, --version')
+
+/**
+ * @zh 显示当前工具包版本
+ * @en display the current package version
+ */
+program.command('version').action(() => {
+  console.log(version)
+})
 
 /**
  * @zh 使用 changesets 管理版本与变更记录

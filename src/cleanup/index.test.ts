@@ -3,7 +3,7 @@ import os from "node:os";
 import { join } from "node:path";
 
 // hoisted mocks must come before the dynamic import
-const { spawnMock, checkboxMock, confirmMock, separatorClass, existsSyncMock, readdirSyncMock, globSyncMock, lstatSyncMock, globPkgSyncMock, rimrafMock } =
+const { spawnMock, checkboxMock, confirmMock, separatorClass, existsSyncMock, readdirSyncMock, globSyncMock, lstatSyncMock, rimrafMock } =
   vi.hoisted(() => ({
     spawnMock: vi.fn(),
     checkboxMock: vi.fn(),
@@ -13,14 +13,13 @@ const { spawnMock, checkboxMock, confirmMock, separatorClass, existsSyncMock, re
     },
     existsSyncMock: vi.fn(),
     readdirSyncMock: vi.fn(),
-    globSyncMock: vi.fn(),
     lstatSyncMock: vi.fn(),
-    globPkgSyncMock: vi.fn(),
+    globSyncMock: vi.fn(),
     rimrafMock: vi.fn(),
   }));
 
 vi.mock("glob", () => ({
-  globSync: globPkgSyncMock,
+  globSync: globSyncMock,
 }));
 
 vi.mock("@npmcli/promise-spawn", () => ({
@@ -36,7 +35,6 @@ vi.mock("@inquirer/prompts", () => ({
 vi.mock("node:fs", () => ({
   existsSync: existsSyncMock,
   readdirSync: readdirSyncMock,
-  globSync: globSyncMock,
   lstatSync: lstatSyncMock,
 }));
 
@@ -92,8 +90,6 @@ describe("cleanup", () => {
     readdirSyncMock.mockImplementation(() => []);
     globSyncMock.mockReset();
     globSyncMock.mockImplementation(() => []);
-    globPkgSyncMock.mockReset();
-    globPkgSyncMock.mockImplementation(() => []);
     lstatSyncMock.mockReset();
     lstatSyncMock.mockImplementation(() => ({
       isDirectory: () => true,
@@ -257,9 +253,11 @@ describe("cleanup", () => {
   });
 
   it("detects project node_modules and lists them under moderate tier", async () => {
-    walkSyncMock.mockReturnValue([walkEntry("/Users/test/projects/app/node_modules")]);
+    globSyncMock.mockImplementation((pattern: string) =>
+      pattern === "**/node_modules" ? ["projects/app/node_modules"] : [],
+    );
     duResolves(new Map([["/Users/test/projects/app/node_modules", 2048]]));
-    checkboxMock.mockResolvedValue(["/Users/test/projects/app/node_modules"]);
+    checkboxMock.mockResolvedValueOnce(["/Users/test/projects/app/node_modules"]);
     confirmMock.mockResolvedValue(true);
 
     await cleanup();
@@ -270,7 +268,7 @@ describe("cleanup", () => {
         new separatorClass("--- Moderate ---"),
         {
           value: "/Users/test/projects/app/node_modules",
-          name: "[moderate] node_modules (~/projects/app) — 2.00 MB",
+          name: "[moderate] node_modules (~/projects/app) │ 2.00 MB",
         },
       ],
     });
@@ -278,7 +276,9 @@ describe("cleanup", () => {
   });
 
   it("yes flag cleans detected node_modules", async () => {
-    walkSyncMock.mockReturnValue([walkEntry("/Users/test/projects/app/node_modules")]);
+    globSyncMock.mockImplementation((pattern: string) =>
+      pattern === "**/node_modules" ? ["projects/app/node_modules"] : [],
+    );
     duResolves(new Map([["/Users/test/projects/app/node_modules", 2048]]));
 
     await cleanup({ yes: true });
@@ -294,7 +294,13 @@ describe("cleanup", () => {
         ? [globEntry("node_modules", "/Users/test/.nvm/versions/node/v20.11.0/lib")]
         : [],
     );
-    walkSyncMock.mockReturnValue([walkEntry("/Users/test/projects/app/node_modules")]);
+    globSyncMock.mockImplementation((pattern: string) =>
+      pattern === "**/node_modules"
+        ? ["projects/app/node_modules"]
+        : pattern === "/Users/test/.nvm/versions/node/*/lib/node_modules"
+          ? [globEntry("node_modules", "/Users/test/.nvm/versions/node/v20.11.0/lib")]
+          : [],
+    );
     readdirSyncMock.mockImplementation((p: string, opts?: { withFileTypes?: boolean }) => {
       if (!opts?.withFileTypes) {
         return p === "/Users/test/.nvm/versions/node/v20.11.0/lib/node_modules"
@@ -309,7 +315,7 @@ describe("cleanup", () => {
         ["/Users/test/.nvm/versions/node/v20.11.0/lib/node_modules/typescript", 4096],
       ]),
     );
-    checkboxMock.mockResolvedValue([
+    checkboxMock.mockResolvedValueOnce([
       "/Users/test/.nvm/versions/node/v20.11.0/lib/node_modules",
     ]);
     confirmMock.mockResolvedValue(true);
@@ -322,11 +328,11 @@ describe("cleanup", () => {
         new separatorClass("--- Moderate ---"),
         {
           value: "/Users/test/.nvm/versions/node/v20.11.0/lib/node_modules",
-          name: "[moderate] global node_modules (~/.nvm/versions/node/v20.11.0/lib, npm/corepack kept) — 4.00 MB",
+          name: "[moderate] global node_modules (~/.nvm/versions/node/v20.11.0/lib, npm/corepack kept) │ 4.00 MB",
         },
         {
           value: "/Users/test/projects/app/node_modules",
-          name: "[moderate] node_modules (~/projects/app) — 2.00 MB",
+          name: "[moderate] node_modules (~/projects/app)                                              │ 2.00 MB",
         },
       ],
     });
@@ -382,7 +388,7 @@ describe("cleanup", () => {
     readdirSyncMock.mockImplementation((p: string) =>
       p === "/Users/test/.npm/_cacache" ? ["content", ".dot"] : [],
     );
-    checkboxMock.mockResolvedValue(["npm-cache"]);
+    checkboxMock.mockResolvedValueOnce(["npm-cache"]);
     confirmMock.mockResolvedValue(true);
 
     await cleanup();
@@ -392,8 +398,8 @@ describe("cleanup", () => {
       message: "Select items to clean up",
       choices: [
         new separatorClass("--- Safe ---"),
-        { value: "npm-cache", name: "npm Cache — 2.00 MB" },
-        { value: "homebrew-cache", name: "Homebrew Cache — 1.00 MB" },
+        { value: "npm-cache", name: "npm Cache      │ 2.00 MB" },
+        { value: "homebrew-cache", name: "Homebrew Cache │ 1.00 MB" },
       ],
     });
     expect(confirmMock).toHaveBeenCalledWith({
@@ -413,7 +419,7 @@ describe("cleanup", () => {
   it("returns silently when nothing is checked", async () => {
     existingOnly("/Users/test/Library/Caches/pnpm");
     duResolves(new Map([["/Users/test/Library/Caches/pnpm", 1024]]));
-    checkboxMock.mockResolvedValue([]);
+    checkboxMock.mockResolvedValueOnce([]);
 
     await cleanup();
 
@@ -421,10 +427,24 @@ describe("cleanup", () => {
     expect(rimrafMock).not.toHaveBeenCalled();
   });
 
+  it("exits cleanly when the cleanup selection prompt is cancelled", async () => {
+    existingOnly("/Users/test/Library/Caches/pnpm");
+    duResolves(new Map([["/Users/test/Library/Caches/pnpm", 1024]]));
+    const error = new Error("User force closed the prompt");
+    error.name = "ExitPromptError";
+    checkboxMock.mockRejectedValueOnce(error);
+
+    await expect(cleanup()).resolves.toBeUndefined();
+
+    expect(confirmMock).not.toHaveBeenCalled();
+    expect(rimrafMock).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
   it("deletes nothing when confirmation is declined", async () => {
     existingOnly("/Users/test/.Trash");
     duResolves(new Map([["/Users/test/.Trash", 2048]]));
-    checkboxMock.mockResolvedValue(["trash"]);
+    checkboxMock.mockResolvedValueOnce(["trash"]);
     confirmMock.mockResolvedValue(false);
 
     await cleanup();
@@ -444,7 +464,7 @@ describe("cleanup", () => {
       ]),
     );
     readdirSyncMock.mockReturnValue([]);
-    checkboxMock.mockResolvedValue(["user-caches"]);
+    checkboxMock.mockResolvedValueOnce(["user-caches", "core-simulator-devices"]);
     confirmMock.mockResolvedValue(true);
 
     await cleanup({ risky: true });
@@ -453,11 +473,31 @@ describe("cleanup", () => {
       message: "Select items to clean up",
       choices: [
         new separatorClass("--- Moderate ---"),
-        { value: "user-caches", name: "[moderate] User Caches — 1.00 MB" },
+        { value: "user-caches", name: "[moderate] User Caches │ 1.00 MB" },
         new separatorClass("--- Risky ---"),
-        { value: "core-simulator-devices", name: "[risky] CoreSimulator Devices — 2.00 MB" },
+        { value: "core-simulator-devices", name: "[risky] CoreSimulator Devices │ 2.00 MB" },
       ],
     });
+  });
+
+  it("renders aligned table rows grouped by tier", async () => {
+    existingOnly("/Users/test/.npm/_cacache", "/Users/test/Library/Caches/pnpm");
+    duResolves(new Map([
+      ["/Users/test/.npm/_cacache", 1024],
+      ["/Users/test/Library/Caches/pnpm", 2048],
+    ]));
+    checkboxMock.mockResolvedValueOnce(["npm-cache", "pnpm-cache"]);
+    confirmMock.mockResolvedValue(true);
+
+    await cleanup();
+
+    expect(checkboxMock).toHaveBeenCalledWith(expect.objectContaining({
+      choices: [
+        new separatorClass("--- Safe ---"),
+        { value: "npm-cache", name: "npm Cache  │ 1.00 MB" },
+        { value: "pnpm-cache", name: "pnpm Cache │ 2.00 MB" },
+      ],
+    }));
   });
 
   it("warns and skips targets whose size cannot be measured", async () => {
@@ -470,7 +510,7 @@ describe("cleanup", () => {
         ? Promise.resolve({ stdout: "2048\t/path\n" })
         : Promise.reject(new Error("boom")),
     );
-    checkboxMock.mockResolvedValue(["homebrew-cache"]);
+    checkboxMock.mockResolvedValueOnce(["homebrew-cache"]);
     confirmMock.mockResolvedValue(true);
 
     await cleanup();
@@ -482,7 +522,7 @@ describe("cleanup", () => {
       message: "Select items to clean up",
       choices: [
         new separatorClass("--- Safe ---"),
-        { value: "homebrew-cache", name: "Homebrew Cache — 2.00 MB" },
+        { value: "homebrew-cache", name: "Homebrew Cache │ 2.00 MB" },
       ],
     });
     expect(rimrafMock).toHaveBeenCalledWith(
@@ -659,54 +699,54 @@ describe("scanTargets", () => {
 // ---------------------------------------------------------------------------
 describe("findNodeModules", () => {
   beforeEach(() => {
-    walkSyncMock.mockReset();
+    globSyncMock.mockReset();
+    globSyncMock.mockImplementation(() => []);
+    lstatSyncMock.mockReset();
+    lstatSyncMock.mockImplementation(() => ({
+      isDirectory: () => true,
+      isSymbolicLink: () => false,
+    }));
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
-  // capture the options handed to walkSync so the filter callbacks can be probed
-  function filters() {
-    return walkSyncMock.mock.calls[0][1];
-  }
-
-  it("maps walk entries to absolute paths and asks for no symlink following", () => {
-    walkSyncMock.mockReturnValue([
-      walkEntry("/Users/test/projects/app/node_modules"),
-    ]);
+  it("maps glob results to absolute paths and disables symlink following", () => {
+    globSyncMock.mockReturnValue(["projects/app/node_modules"]);
 
     expect(findNodeModules("/Users/test")).toEqual([
       "/Users/test/projects/app/node_modules",
     ]);
-    expect(walkSyncMock).toHaveBeenCalledWith(
-      "/Users/test",
-      expect.objectContaining({ followSymbolicLinks: false }),
+    expect(globSyncMock).toHaveBeenCalledWith(
+      "**/node_modules",
+      expect.objectContaining({ cwd: "/Users/test", follow: false }),
     );
   });
 
-  it("keeps node_modules as a result but prunes it from descent", () => {
-    walkSyncMock.mockReturnValue([]);
-    findNodeModules("/Users/test");
-    const { entryFilter, deepFilter } = filters();
-    const nm = walkEntry("/Users/test/projects/app/node_modules");
-
-    expect(entryFilter!(nm)).toBe(true);
-    expect(deepFilter!(nm)).toBe(false);
+  it("ignores node_modules contents and excluded top-level directories", () => {
+    findNodeModules("/Users/test", ["Library"]);
+    expect(globSyncMock).toHaveBeenCalledWith("**/node_modules", {
+      cwd: "/Users/test",
+      ignore: [
+        "**/node_modules/*",
+        "**/node_modules/*/**",
+        "Library/**",
+      ],
+      follow: false,
+    });
   });
 
-  it("skips dot-dirs and symlink results, excluding only top-level names", () => {
-    walkSyncMock.mockReturnValue([]);
-    findNodeModules("/Users/test");
-    const { entryFilter, deepFilter } = filters();
+  it("filters non-directories and symlinks from glob results", () => {
+    globSyncMock.mockReturnValue(["link/node_modules", "file/node_modules", "app/node_modules"]);
+    lstatSyncMock.mockImplementation((path: string) => ({
+      isDirectory: () => path !== "/Users/test/file/node_modules",
+      isSymbolicLink: () => path === "/Users/test/link/node_modules",
+    }));
 
-    expect(deepFilter!(walkEntry("/Users/test/.hidden"))).toBe(false);
-    expect(deepFilter!(walkEntry("/Users/test/Library"))).toBe(false);
-    expect(deepFilter!(walkEntry("/Users/test/projects"))).toBe(true);
-    expect(deepFilter!(walkEntry("/Users/test/projects/Library"))).toBe(true);
-    expect(entryFilter!(walkEntry("/Users/test/projects/app/node_modules", { dir: false }))).toBe(
-      false,
-    );
+    expect(findNodeModules("/Users/test")).toEqual([
+      "/Users/test/app/node_modules",
+    ]);
   });
 });
 

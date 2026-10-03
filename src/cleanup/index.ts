@@ -1,8 +1,8 @@
 import { checkbox, confirm, Separator } from '@inquirer/prompts'
-import { globSync as globPackageSync } from 'glob'
+import { globSync } from 'glob'
 import spawn from '@npmcli/promise-spawn'
 import { rimraf } from 'rimraf'
-import { existsSync, globSync, lstatSync, readdirSync } from 'node:fs'
+import { existsSync, lstatSync, readdirSync } from 'node:fs'
 import os from 'node:os'
 import { join } from 'node:path'
 
@@ -207,7 +207,7 @@ export function findNodeModules(
     '**/node_modules/*/**',
     ...excludes.map((name) => `${name}/**`)
   ]
-  return globPackageSync('**/node_modules', { cwd: root, ignore, follow: false })
+  return globSync('**/node_modules', { cwd: root, ignore, follow: false })
     .map((path) => join(root, path))
     .filter((path) => {
       let stat
@@ -248,13 +248,13 @@ const GLOBAL_NODE_MODULES_GLOBS: Array<{ pattern: string; keepChildren?: string[
 ]
 
 /**
- * @zh 用内置 `fs.globSync` 展开含单段 `*` 通配的路径：
+ * @zh 用第三方 `glob` 包的 `globSync` 展开含单段 `*` 通配的路径：
  * 点目录天然不参与 `*` 匹配，中间目录不存在时返回空；
  * 结果为符号链接的条目跳过——它只是别名，删除只断链接、不释放空间，
  * 其真实目标（如 `~/.nvm/current` 指向的版本目录）会作为实体目录
  * 被单独扫到，跳过可避免重复统计
  * @en expand a path containing single-segment `*` wildcards with the
- * built-in `fs.globSync`: dot-directories never match `*` and missing
+ * the `glob` package's `globSync`: dot-directories never match `*` and missing
  * intermediate directories yield nothing; symlink results are skipped —
  * a link is only an alias, removing it frees nothing, and its real target
  * (e.g. the version dir behind `~/.nvm/current`) is scanned on its own, so
@@ -385,11 +385,12 @@ function toChoices(items: MeasuredTarget[]): Array<Separator | { value: string; 
     const tierItems = items.filter((item) => item.tier === tier)
     if (tierItems.length === 0) continue
     choices.push(new Separator(`--- ${TIER_LABEL[tier]} ---`))
+    const nameWidth = Math.max(...tierItems.map((item) => item.labelEn.length))
     for (const item of tierItems) {
       const prefix = tier === 'safe' ? '' : `[${tier}] `
       choices.push({
         value: item.id,
-        name: `${prefix}${item.labelEn} — ${formatSize(item.sizeKib)}`
+        name: `${prefix}${item.labelEn.padEnd(nameWidth)} │ ${formatSize(item.sizeKib)}`
       })
     }
   }
@@ -476,7 +477,7 @@ export async function cleanup(options: CleanupOptions = {}): Promise<void> {
     }
   }
 
-  console.log('scanning for node_modules...')
+  console.log('scanning for cleanup targets...')
   const nodeModuleTargets: CleanupTarget[] = [
     ...findNodeModules(home).map((path): CleanupTarget => {
       const project = path.slice(home.length + 1).replace(/\/node_modules$/, '')
@@ -553,10 +554,15 @@ export async function cleanup(options: CleanupOptions = {}): Promise<void> {
   } else {
     const totalKib = measured.reduce((sum, item) => sum + item.sizeKib, 0)
     console.log(`Total Reclaimable: ${formatSize(totalKib)} in ${measured.length} items`)
-    selected = await checkbox<string>({
-      message: 'Select items to clean up',
-      choices: toChoices(measured)
-    })
+    try {
+      selected = await checkbox<string>({
+        message: 'Select items to clean up',
+        choices: toChoices(measured)
+      })
+    } catch (err) {
+      if (err instanceof Error && err.name === 'ExitPromptError') return
+      throw err
+    }
   }
 
   if (selected.length === 0) return
