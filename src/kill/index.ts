@@ -3,8 +3,14 @@ import spawn from "@npmcli/promise-spawn";
 import os from "node:os";
 
 /**
- * @description
- * find the PIDs of processes listening on the given port
+ * @zh 查找监听指定端口的进程 PID
+ *
+ * - macOS/linux 使用 `lsof -ti :<port>`
+ * - windows 解析 `netstat -ano` 中的 `LISTENING` 行
+ *
+ * 端口上无进程时返回空数组
+ *
+ * @en find the PIDs of processes listening on the given port
  *
  * - on macOS/linux uses `lsof -ti :<port>`
  * - on windows parses `LISTENING` rows from `netstat -ano`
@@ -51,8 +57,8 @@ export async function findPidsByPort(port: number): Promise<number[]> {
 }
 
 /**
- * @description
- * kill every process listening on the given port (SIGKILL)
+ * @zh 杀掉所有监听指定端口的进程（SIGKILL）
+ * @en kill every process listening on the given port (SIGKILL)
  */
 export async function killPort(port: number): Promise<void> {
   const pids = await findPidsByPort(port);
@@ -69,8 +75,8 @@ export async function killPort(port: number): Promise<void> {
 }
 
 /**
- * @description
- * kill the process bound to a port
+ * @zh 杀掉占用某端口的进程
+ * @en kill the process bound to a port
  *
  * usage: `jrv kill 8080` or `jrv kill` (interactive prompt)
  */
