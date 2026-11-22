@@ -1,6 +1,19 @@
 # jarvis
 a common robot for common repository
 
+## 开发环境初始化
+
+运行 `jrv setup` 后，多选需要执行的项目，默认全部不勾选：
+
+- 安装 pnpm（已安装则跳过）
+- 安装 Claude Code（已安装则跳过）
+- 初始化当前目录的 `.jarvis/settings.json`，并按需添加 `.gitignore` 规则
+- 安装 Bash/Zsh 集成，支持 `jrv use` 和 `jrv nvm checkout`
+
+空格勾选，回车执行；不选任何项目或按 Ctrl+C 取消时不作修改。
+已有配置保留。仅选择 shell 集成时才会修改 `~/.bashrc` 或 `~/.zshrc`，
+完成后按提示 source 对应文件或打开新终端。
+
 ## Node 版本切换（nvm-sh）
 
 支持 macOS/Linux 的 Bash、Zsh。先安装 [nvm-sh](https://github.com/nvm-sh/nvm#installing-and-updating)，

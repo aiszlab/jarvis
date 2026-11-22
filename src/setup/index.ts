@@ -1,4 +1,5 @@
 import spawn from "@npmcli/promise-spawn"
+import { checkbox } from "@inquirer/prompts"
 import { existsSync, writeFileSync, appendFileSync, readFileSync, mkdirSync } from "node:fs"
 import { homedir } from "node:os"
 import { join, dirname } from "node:path"
@@ -113,40 +114,73 @@ function installShellIntegration(rcPath: string): void {
 }
 
 /**
- * @zh 初始化开发环境
- * @en initialize dev environment
+ * @zh 交互式选择并执行开发环境初始化项目
+ * @en select and run development environment setup tasks interactively
  */
 export const setupDev = async () => {
-  // 1. install pnpm
-  const hasPnpm = await isInstalled("pnpm")
-  if (hasPnpm) {
-    console.log("pnpm already installed ✓")
-  } else {
-    console.log("installing pnpm...")
-    await spawn("npm", ["install", "-g", "pnpm"], { stdio: "inherit" })
-    console.log("pnpm installed ✓")
-  }
-
-  // 2. install claude-code
-  const hasClaude = await isInstalled("claude")
-  if (hasClaude) {
-    console.log("claude-code already installed ✓")
-  } else {
-    console.log("installing claude-code...")
-    await spawn("npm", ["install", "-g", "@anthropic-ai/claude-code"], {
-      stdio: "inherit",
+  let selected: string[]
+  try {
+    selected = await checkbox<string>({
+      message: "Select setup tasks (Space to select, Enter to run)",
+      choices: [
+        { name: "Install pnpm", value: "pnpm", checked: false },
+        { name: "Install Claude Code", value: "claude", checked: false },
+        { name: "Initialize project config (.jarvis/settings.json + .gitignore)", value: "config", checked: false },
+        { name: "Install Bash/Zsh integration (jrv use + nvm checkout)", value: "shell", checked: false },
+      ],
     })
-    console.log("claude-code installed ✓")
+  } catch (error) {
+    if (error instanceof Error && ["ExitPromptError", "AbortPromptError"].includes(error.name)) {
+      console.log("setup cancelled")
+      return
+    }
+    throw error
   }
 
-  // 3. initialize .jarvis/settings.json + gitignore
-  await initConfig(process.cwd())
+  if (selected.length === 0) {
+    console.log("no setup tasks selected")
+    return
+  }
 
-  // 4. install shell integration (source jarvis.sh → defines jrv() wrapper)
-  const { shell, rcPath } = detectRcFile()
-  console.log(`\ndetected shell: ${shell}`)
-  installShellIntegration(rcPath)
+  if (selected.includes("pnpm")) {
+    // 1. install pnpm
+    const hasPnpm = await isInstalled("pnpm")
+    if (hasPnpm) {
+      console.log("pnpm already installed ✓")
+    } else {
+      console.log("installing pnpm...")
+      await spawn("npm", ["install", "-g", "pnpm"], { stdio: "inherit" })
+      console.log("pnpm installed ✓")
+    }
+  }
 
-  console.log(`\nto activate, run: source "${rcPath}"`)
-  console.log("dev environment ready!")
+  if (selected.includes("claude")) {
+    // 2. install claude-code
+    const hasClaude = await isInstalled("claude")
+    if (hasClaude) {
+      console.log("claude-code already installed ✓")
+    } else {
+      console.log("installing claude-code...")
+      await spawn("npm", ["install", "-g", "@anthropic-ai/claude-code"], {
+        stdio: "inherit",
+      })
+      console.log("claude-code installed ✓")
+    }
+  }
+
+  if (selected.includes("config")) {
+    // 3. initialize .jarvis/settings.json + gitignore
+    await initConfig(process.cwd())
+  }
+
+  if (selected.includes("shell")) {
+    // 4. install shell integration (source jarvis.sh → defines jrv() wrapper)
+    const { shell, rcPath } = detectRcFile()
+    console.log(`\ndetected shell: ${shell}`)
+    installShellIntegration(rcPath)
+
+    console.log(`\nto activate, run: source "${rcPath}"`)
+  }
+
+  console.log("selected setup tasks complete!")
 }
