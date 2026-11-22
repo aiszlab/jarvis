@@ -1,6 +1,6 @@
 {
   "name": "@aiszlab/jarvis",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "robot",
   "main": "dist/index.js",
   "engines": {

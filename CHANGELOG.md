@@ -1,5 +1,11 @@
 # @aiszlab/jarvis
 
+## 1.2.1
+
+### Patch Changes
+
+- 将 `jrv setup` 改为交互式多选 pnpm、Claude Code、项目配置和 Bash/Zsh 集成，默认全部不勾选，仅执行选中项。空选或取消时不作修改，保留已有工具和配置，仅在选择 shell 集成时显示激活提示。
+
 ## 1.2.0
 
 ### Minor Changes
