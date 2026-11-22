@@ -19,7 +19,7 @@ There is no lint/format step configured. The project uses pnpm as its package ma
 Jarvis is a single-package CLI published as `@aiszlab/jarvis` (bin: `jrv`). It wraps eight independent commands via Commander.js:
 
 - **`changesets`** (`cs`) — Thin proxy to `@changesets/cli/bin.js`, resolved at runtime via `createRequire`. Supports `-v` (version) and `-m` (auto-generate message) flags.
-- **`setup`** — Bootstraps a dev environment: globally installs pnpm and `@anthropic-ai/claude-code`, scaffolds `.jarvis/settings.json` + adds `.jarvis/` to `.gitignore`, and installs shell integration (sources `jarvis.sh` into `~/.zshrc`/`~/.bashrc`).
+- **`setup`** — Presents four independent checkbox choices (none selected by default); only selected tasks run, and empty selection/cancellation makes no changes. Available tasks: globally installs pnpm and `@anthropic-ai/claude-code`, scaffolds `.jarvis/settings.json` + adds `.jarvis/` to `.gitignore`, and installs shell integration (sources `jarvis.sh` into `~/.zshrc`/`~/.bashrc`).
 - **`switch`** (`sw`) — Interactive prompt (Inquirer) to pick a platform/model preset and write env vars to `~/.claude/settings.json`. Merges with existing settings; inputs override presets, presets override existing file values. Model presets are defined as static data in `src/switch/index.ts`.
 - **`remove`** (`rm`) — `rm -rf` equivalent via rimraf.
 - **`kill`** (`k`) — Kills processes listening on a given port. Accepts an optional port argument; prompts interactively if omitted. Uses `lsof` on macOS/Linux and `netstat` on Windows to find PIDs.

@@ -41,10 +41,8 @@ program
   })
 
 /**
- * @zh 初始化开发环境（pnpm + claude-code），生成配置文件，
- * 并安装 shell 集成（将 jarvis.sh source 到 ~/.zshrc / ~/.bashrc）
- * @en initialize dev environment (pnpm + claude-code), scaffold config file,
- * and install shell integration (source jarvis.sh into ~/.zshrc / ~/.bashrc)
+ * @zh 交互式选择安装 pnpm、Claude Code、项目配置或 shell 集成，默认不选
+ * @en interactively select pnpm, Claude Code, project config or shell integration; nothing selected by default
  */
 program.command('setup').action(() => {
   setupDev()
