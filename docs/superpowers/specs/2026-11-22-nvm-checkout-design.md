@@ -15,15 +15,19 @@ Without the wrapper, explain how to activate integration and exit unsuccessfully
 ## Cleanup
 
 Only after all checkout steps succeed, `--force` invokes a hidden CLI cleanup
-command using the original Node and jrv paths. Keep the target/default, original
-shell version, CLI runtime and CLI installation versions. Skip all cleanup if any
+command from the newly installed Jarvis under the target Node. Before cleanup,
+use the original CLI to run the target Node/npm and install the same published
+Jarvis version with an explicit target prefix. Verify package metadata, entry
+location and runnable CLI version; installation failure retains all old versions.
+Do this installation on normal checkouts too. Keep the target/default and the
+cleanup CLI runtime/installation, but allow removal of the original shell version. Skip all cleanup if any
 other shell process exists (including idle shells), process inspection fails, or
 lsof is unavailable. For each other installed version, check open files with lsof,
 recheck default and process safety, then uninstall via nvm and delete only that
 version's bin/src download-cache directories. Skip symlinked locations. Do not
 clear all nvm cache. Failed/partial cleanup is reported without undoing checkout.
 
-Global packages belonging to an uninstalled version are removed, not migrated.
+Global packages belonging to an uninstalled version are removed; only Jarvis is installed in the target version.
 Never touch shared npm/pnpm/yarn caches or project node_modules. The conservative
 shell check may skip cleanup for unrelated shells. Inspection cannot prevent a
 process from starting after a check; users should close other sessions and avoid

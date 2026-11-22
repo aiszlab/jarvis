@@ -10,7 +10,7 @@ import { kill } from './kill/index.js'
 import { useEnv } from './use/index.js'
 import { unsleep } from './unsleep/index.js'
 import { cleanup } from './cleanup/index.js'
-import { checkoutNvm, pruneNvm } from './nvm/index.js'
+import { checkoutNvm, pruneNvm, installTargetJarvis } from './nvm/index.js'
 
 const program = new Command()
 const { version } = pkg
@@ -161,10 +161,16 @@ nvm.command('checkout')
       process.exitCode = 1
     }
   })
+nvm.command('_install', { hidden: true })
+  .action(() => {
+    try { console.log(installTargetJarvis()) } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err))
+      process.exitCode = 1
+    }
+  })
 nvm.command('_prune', { hidden: true })
-  .argument('<keep>')
-  .action((keep: string) => {
-    try { pruneNvm(keep) } catch (err) {
+  .action(() => {
+    try { pruneNvm() } catch (err) {
       console.error(err instanceof Error ? err.message : String(err))
       process.exitCode = 1
     }

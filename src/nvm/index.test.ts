@@ -1,16 +1,16 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mkdtempSync, mkdirSync, writeFileSync, existsSync, symlinkSync, rmSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, writeFileSync, existsSync, symlinkSync, rmSync, realpathSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
 const { execMock } = vi.hoisted(() => ({ execMock: vi.fn() }))
 vi.mock('node:child_process', () => ({ execFileSync: execMock }))
-const { checkoutNvm, pruneNvm } = await import('./index.js')
+const { checkoutNvm, pruneNvm, installTargetJarvis } = await import('./index.js')
 
 let root: string
 let output: ReturnType<typeof vi.spyOn>
 beforeEach(() => {
-  root = mkdtempSync(join(tmpdir(), 'jarvis-nvm-'))
+  root = realpathSync(mkdtempSync(join(tmpdir(), 'jarvis-nvm-')))
   vi.stubEnv('NVM_DIR', root)
   vi.stubEnv('JARVIS_NVM_SHELL', '1')
   vi.stubEnv('NVM_BIN', join(root, 'versions/node/v24.0.0/bin'))
@@ -48,15 +48,15 @@ describe('checkout preflight', () => {
   })
 })
 describe('conservative prune', () => {
-  it('keeps target and original version and only removes matching download caches', () => {
+  it('keeps target and removes the previous version and only removes matching download caches', () => {
     setup()
     for (const name of ['node-v20.0.0-darwin-arm64', 'node-v20.0.01-darwin-arm64', 'node-v24.0.0-darwin-arm64']) {
       mkdirSync(join(root, '.cache/bin', name), { recursive: true })
     }
     mkdirSync(join(root, '.cache/src/node-v20.0.0'), { recursive: true })
-    pruneNvm('v22.0.0')
+    pruneNvm()
     expect(existsSync(join(root, 'versions/node/v20.0.0'))).toBe(false)
-    expect(existsSync(join(root, 'versions/node/v22.0.0'))).toBe(true)
+    expect(existsSync(join(root, 'versions/node/v22.0.0'))).toBe(false)
     expect(existsSync(join(root, 'versions/node/v24.0.0'))).toBe(true)
     expect(existsSync(join(root, '.cache/bin/node-v20.0.0-darwin-arm64'))).toBe(false)
     expect(existsSync(join(root, '.cache/src/node-v20.0.0'))).toBe(false)
@@ -75,7 +75,7 @@ describe('conservative prune', () => {
       if (cmd === 'lsof' && mode === 'default changed') writeFileSync(join(root, 'alias/default'), 'v20.0.0\n')
       return normal(cmd, args)
     })
-    pruneNvm('v22.0.0')
+    pruneNvm()
     expect(existsSync(join(root, 'versions/node/v20.0.0'))).toBe(true)
     expect(output).toHaveBeenCalled()
   })
@@ -83,7 +83,7 @@ describe('conservative prune', () => {
     setup()
     const outside = join(root, 'outside'); mkdirSync(outside)
     symlinkSync(outside, join(root, 'versions/node/v18.0.0'))
-    pruneNvm('v22.0.0')
+    pruneNvm()
     expect(existsSync(outside)).toBe(true)
     expect(execMock.mock.calls.filter(([cmd, args]) => cmd === 'bash' && args.at(-1) === 'v18.0.0')).toHaveLength(0)
   })
@@ -93,7 +93,7 @@ describe('conservative prune', () => {
     const link = join(root, location)
     mkdirSync(join(link, '..'), { recursive: true })
     symlinkSync(outside, link)
-    pruneNvm('v22.0.0')
+    pruneNvm()
     expect(existsSync(join(root, 'versions/node/v20.0.0'))).toBe(true)
     expect(existsSync(outside)).toBe(true)
   })
@@ -107,7 +107,7 @@ describe('conservative prune', () => {
     const originalArgv = process.argv
     try {
       process.argv = [process.execPath, cli]
-      pruneNvm('v22.0.0')
+      pruneNvm()
       expect(existsSync(cli)).toBe(true)
     } finally { process.argv = originalArgv }
   })
@@ -117,7 +117,7 @@ describe('conservative prune', () => {
     execMock.mockImplementation((cmd, args) => cmd === 'ps'
       ? `${process.pid} ${process.ppid} node\n${process.ppid} 1 zsh\n900000 1 ${shell}\n`
       : normal(cmd, args))
-    pruneNvm('v22.0.0')
+    pruneNvm()
     expect(existsSync(join(root, 'versions/node/v20.0.0'))).toBe(true)
   })
   it('retains caches if uninstall fails', () => {
@@ -125,7 +125,58 @@ describe('conservative prune', () => {
     mkdirSync(join(root, '.cache/src/node-v20.0.0'), { recursive: true })
     const normal = execMock.getMockImplementation()!
     execMock.mockImplementation((cmd, args) => { if (cmd === 'bash') throw new Error('uninstall failed'); return normal(cmd, args) })
-    expect(() => pruneNvm('v22.0.0')).toThrow(/uninstall failed/)
+    expect(() => pruneNvm()).toThrow(/uninstall failed/)
     expect(existsSync(join(root, '.cache/src/node-v20.0.0'))).toBe(true)
+  })
+})
+
+describe('install Jarvis in the selected Node', () => {
+  function prepare() {
+    setup()
+    const bin = join(root, 'versions/node/v24.0.0/bin')
+    writeFileSync(join(bin, 'node'), '')
+    writeFileSync(join(bin, 'npm'), '')
+    return bin
+  }
+  function installedJarvis(version: string, link = true) {
+    const dir = join(root, 'versions/node/v24.0.0/lib/node_modules/@aiszlab/jarvis')
+    mkdirSync(join(dir, 'dist'), { recursive: true })
+    writeFileSync(join(dir, 'package.json'), JSON.stringify({ name: '@aiszlab/jarvis', version }))
+    writeFileSync(join(dir, 'dist/index.js'), '')
+    if (link) symlinkSync(join(dir, 'dist/index.js'), join(root, 'versions/node/v24.0.0/bin/jrv'))
+    return join(dir, 'dist/index.js')
+  }
+  it('pins installation to the running Jarvis version and target Node prefix', async () => {
+    const bin = prepare()
+    const { default: pkg } = await import('../../package.json', { with: { type: 'json' } })
+    execMock.mockImplementation((command, args) => {
+      expect(command).toBe(join(bin, 'node'))
+      if (args[1] === 'install') {
+        expect(args).toEqual([join(bin, 'npm'), 'install', '--global', '--bin-links=true', '--prefix', join(bin, '..'), `@aiszlab/jarvis@${pkg.version}`])
+        installedJarvis(pkg.version)
+        return ''
+      }
+      expect(args.at(-1)).toBe('--version')
+      return pkg.version + '\n'
+    })
+    expect(installTargetJarvis()).toBe(join(root, 'versions/node/v24.0.0/lib/node_modules/@aiszlab/jarvis/dist/index.js'))
+  })
+  it('propagates installation failure without uninstalling any Node version', () => {
+    prepare()
+    execMock.mockImplementation(() => { throw new Error('npm install failed') })
+    expect(() => installTargetJarvis()).toThrow(/npm install failed/)
+    expect(existsSync(join(root, 'versions/node/v22.0.0'))).toBe(true)
+  })
+  it('rejects a valid package without a working jrv command link', async () => {
+    prepare()
+    const { default: pkg } = await import('../../package.json', { with: { type: 'json' } })
+    execMock.mockImplementation(() => { installedJarvis(pkg.version, false); return pkg.version })
+    expect(() => installTargetJarvis()).toThrow(/verify Jarvis command/)
+    expect(existsSync(join(root, 'versions/node/v22.0.0'))).toBe(true)
+  })
+  it('rejects an installation whose version does not match', () => {
+    prepare()
+    execMock.mockImplementation(() => { installedJarvis('0.0.0'); return '' })
+    expect(() => installTargetJarvis()).toThrow(/verify Jarvis/)
   })
 })

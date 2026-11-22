@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process'
 import { accessSync, constants, existsSync, lstatSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs'
 import { homedir, platform } from 'node:os'
 import { basename, join, resolve, sep } from 'node:path'
+import pkg from '../../package.json' with { type: 'json' }
 
 const EXACT_VERSION = /^v\d+\.\d+\.\d+$/
 const nvmDir = () => resolve(process.env.NVM_DIR || join(homedir(), '.nvm'))
@@ -106,7 +107,7 @@ function removeVersionCache(root: string, version: string): void {
  * @zh 成功切换后保守清理旧版本；检测失败时保留文件
  * @en conservatively prune old versions after checkout; retain files when inspection fails
  */
-export function pruneNvm(keep: string): void {
+export function pruneNvm(): void {
   validateNvm()
   const root = nvmDir()
   const target = defaultVersion(root)
@@ -118,8 +119,8 @@ export function pruneNvm(keep: string): void {
   for (const version of readdirSync(versions)) {
     const path = join(versions, version)
     if (!EXACT_VERSION.test(version) || !directory(path)) continue
-    if (version === target || version === keep || protectedPaths.some(p => p.startsWith(realpathSync(path) + sep))) {
-      console.error(`nvm cleanup retained ${version}: default, original shell, or Jarvis installation/runtime`)
+    if (version === target || protectedPaths.some(p => p.startsWith(realpathSync(path) + sep))) {
+      console.error(`nvm cleanup retained ${version}: default or active Jarvis installation/runtime`)
       continue
     }
     try {
@@ -139,4 +140,35 @@ export function pruneNvm(keep: string): void {
     if (existsSync(path)) throw new Error(`nvm uninstall did not remove ${version}; caches retained`)
     removeVersionCache(root, version)
   }
+}
+
+/**
+ * @zh 在目标 Node 下安装当前版本 Jarvis，验证成功后返回新入口
+ * @en install the current Jarvis release under the target Node and return its verified entry
+ */
+export function installTargetJarvis(): string {
+  validateNvm()
+  const root = nvmDir()
+  const target = defaultVersion(root)
+  const prefix = join(root, 'versions/node', target)
+  const bin = join(prefix, 'bin')
+  if (resolve(process.env.NVM_BIN || '.') !== bin) throw new Error('Target Node is not active; old versions retained.')
+  const node = join(bin, 'node')
+  if (!realpathSync(node).startsWith(realpathSync(prefix) + sep)) throw new Error('Target Node executable is outside its installation.')
+  execFileSync(node, [join(bin, 'npm'), 'install', '--global', '--bin-links=true', '--prefix', join(bin, '..'), `${pkg.name}@${pkg.version}`], {
+    env: process.env, stdio: ['inherit', 2, 2],
+  })
+  const installed = join(prefix, 'lib/node_modules/@aiszlab/jarvis')
+  const metadata = JSON.parse(readFileSync(join(installed, 'package.json'), 'utf8'))
+  const entry = realpathSync(join(installed, 'dist/index.js'))
+  if (metadata.name !== pkg.name || metadata.version !== pkg.version ||
+      !entry.startsWith(realpathSync(prefix) + sep) || /[\r\n]/.test(entry)) {
+    throw new Error('Unable to verify Jarvis installation; old Node versions retained.')
+  }
+  if (!existsSync(join(bin, 'jrv')) || realpathSync(join(bin, 'jrv')) !== entry) {
+    throw new Error('Unable to verify Jarvis command link; old Node versions retained.')
+  }
+  const version = execFileSync(node, [entry, '--version'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim()
+  if (version !== pkg.version) throw new Error('Unable to verify Jarvis executable; old Node versions retained.')
+  return entry
 }
