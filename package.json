@@ -43,6 +43,6 @@
   },
   "files": [
     "dist/",
-    "jrv.sh"
+    "jarvis.sh"
   ]
 }
