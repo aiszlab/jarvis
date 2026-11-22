@@ -2,11 +2,13 @@ import { execFileSync } from 'node:child_process'
 import { accessSync, constants, existsSync, lstatSync, readFileSync, readdirSync, realpathSync, rmSync } from 'node:fs'
 import { homedir, platform } from 'node:os'
 import { basename, join, resolve, sep } from 'node:path'
+import { createFeedback, formatError } from '../cli/feedback.js'
 import pkg from '../../package.json' with { type: 'json' }
 
 const EXACT_VERSION = /^v\d+\.\d+\.\d+$/
 const nvmDir = () => resolve(process.env.NVM_DIR || join(homedir(), '.nvm'))
-const skip = (reason: string) => console.error(`nvm cleanup skipped: ${reason}`)
+const feedback = createFeedback()
+const skip = (reason: string) => feedback.warn(`nvm cleanup skipped: ${reason}`)
 
 /**
  * @zh 检查 nvm 与 shell 集成，不修改用户环境
@@ -116,30 +118,36 @@ export function pruneNvm(): void {
   if (resolve(process.env.NVM_BIN || '.') !== join(versions, target, 'bin')) { skip('current shell does not use default'); return }
   const protectedPaths = [realpathSync(process.execPath)]
   if (process.argv[1] && existsSync(process.argv[1])) protectedPaths.push(realpathSync(process.argv[1]))
+  let removed = 0
+  let retained = 0
+  let skipped = 0
   for (const version of readdirSync(versions)) {
     const path = join(versions, version)
     if (!EXACT_VERSION.test(version) || !directory(path)) continue
     if (version === target || protectedPaths.some(p => p.startsWith(realpathSync(path) + sep))) {
-      console.error(`nvm cleanup retained ${version}: default or active Jarvis installation/runtime`)
+      retained++
+      feedback.info(`nvm cleanup retained ${version}: default or active Jarvis installation/runtime`)
       continue
     }
     try {
       checkCachePaths(root, version)
       inspectProcesses()
-      if (hasOpenFiles(path)) { skip(`${version} has open files`); continue }
+      if (hasOpenFiles(path)) { skipped++; skip(`${version} has open files`); continue }
       inspectProcesses()
       if (defaultVersion(root) !== target) { skip('default changed concurrently'); return }
     } catch (err) {
-      skip(err instanceof Error ? err.message : String(err))
+      skip(formatError(err))
       return
     }
-    console.error(`Removing ${version} and its global packages and nvm download cache`)
+    feedback.info(`Removing ${version} and its global packages and nvm download cache`)
     execFileSync('bash', ['-c', '. "$1" --no-use && nvm use "$2" && nvm uninstall "$3"', 'jarvis-nvm', join(root, 'nvm.sh'), target, version], {
-      env: { ...process.env, NVM_DIR: root }, stdio: 'inherit',
+      env: { ...process.env, NVM_DIR: root }, stdio: ['inherit', 2, 2],
     })
     if (existsSync(path)) throw new Error(`nvm uninstall did not remove ${version}; caches retained`)
     removeVersionCache(root, version)
+    removed++
   }
+  feedback.summary('nvm cleanup complete', { Removed: String(removed), Retained: String(retained), Skipped: String(skipped) })
 }
 
 /**

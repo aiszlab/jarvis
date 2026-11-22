@@ -61,3 +61,26 @@ Jarvis 使用 `$NVM_DIR/.jarvis-checkout.lock` 防止自己的 checkout 并发�
 nvm 的全局工具按 Node 版本隔离。checkout 会自动安装当前版本的 Jarvis，
 需要 npm registry 可用且该版本已发布；安装或验证失败时保留旧 Node，不执行清理。
 其他已有终端保持自己的 PATH，只有后续加载 nvm 的终端会使用新的 default。
+
+## 命令执行反馈
+
+`jrv nvm checkout` 显示安装、激活、default 设置和 Jarvis 验证进度，
+成功后汇总 Node、default 与耗时；`--force` 额外报告清理或跳过原因。
+失败时显示失败步骤并返回非零状态，不显示成功摘要。
+
+```text
+> Installing Node 24
++ Installing Node 24
+...
++ Checkout complete
+  Node: v24.0.0
+  Default: v24.0.0
+  Jarvis: ready
+  Time: 3s
+```
+
+所有人类可读进度及 nvm 子命令日志走 stderr，stdout 保留给版本、export
+和 shell 集成协议。非 TTY、CI、`TERM=dumb` 使用无颜色的静态行；
+设置 `NO_COLOR`（包括空值）关闭颜色。共享反馈模块提供 logger、spinner、
+summary 和 error formatter；spinner 仅在 TTY 且非 CI 时动画。
+checkout 的 nvm 操作必须在父 shell 中运行，因此使用静态步骤反馈。

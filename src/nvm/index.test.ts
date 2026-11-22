@@ -14,7 +14,7 @@ beforeEach(() => {
   vi.stubEnv('NVM_DIR', root)
   vi.stubEnv('JARVIS_NVM_SHELL', '1')
   vi.stubEnv('NVM_BIN', join(root, 'versions/node/v24.0.0/bin'))
-  output = vi.spyOn(console, 'error').mockImplementation(() => {})
+  output = vi.spyOn(process.stderr, 'write').mockImplementation(() => true)
   execMock.mockReset()
   execMock.mockImplementation((cmd: string, args: string[]) => {
     if (cmd === 'ps') return `${process.pid} ${process.ppid} node\n${process.ppid} 1 zsh\n`
@@ -55,6 +55,7 @@ describe('conservative prune', () => {
     }
     mkdirSync(join(root, '.cache/src/node-v20.0.0'), { recursive: true })
     pruneNvm()
+    expect(output.mock.calls.flat().join('')).toContain('nvm cleanup complete')
     expect(existsSync(join(root, 'versions/node/v20.0.0'))).toBe(false)
     expect(existsSync(join(root, 'versions/node/v22.0.0'))).toBe(false)
     expect(existsSync(join(root, 'versions/node/v24.0.0'))).toBe(true)

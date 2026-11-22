@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { createFeedback } from './cli/feedback.js'
 import { Command, InvalidArgumentError } from 'commander'
 import { realpathSync } from 'node:fs'
 import pkg from '../package.json' with { type: 'json' }
@@ -155,21 +156,21 @@ nvm.command('checkout')
       if (/[\r\n]/.test(process.execPath + entry)) throw new Error('Jarvis executable paths cannot contain newlines.')
       console.log(`JARVIS_NVM_CHECKOUT:${version}\n${process.execPath}\n${entry}`)
     } catch (err) {
-      console.error(err instanceof Error ? err.message : String(err))
+      createFeedback().error(err)
       process.exitCode = 1
     }
   })
 nvm.command('_install', { hidden: true })
   .action(() => {
     try { console.log(installTargetJarvis()) } catch (err) {
-      console.error(err instanceof Error ? err.message : String(err))
+      createFeedback().error(err)
       process.exitCode = 1
     }
   })
 nvm.command('_prune', { hidden: true })
   .action(() => {
     try { pruneNvm() } catch (err) {
-      console.error(err instanceof Error ? err.message : String(err))
+      createFeedback().error(err)
       process.exitCode = 1
     }
   })

@@ -23,6 +23,7 @@ if (args[1] === '_install') {
   process.exit(0);
 }
 if (args[1] === '_prune') {
+  console.log('legacy cleanup output');
   if (!process.argv[1].startsWith(process.env.NVM_BIN + '/')) process.exit(11);
   if (!fs.existsSync(process.env.NVM_DIR + '/jarvis-installed')) process.exit(12);
   fs.writeFileSync(process.env.NVM_DIR + '/pruned', process.argv[1]);
@@ -37,6 +38,7 @@ console.log('JARVIS_NVM_CHECKOUT:' + args[2] + '\\n' + process.execPath + '\\n' 
 nvm() {
   printf '%s\\n' "$*" >> "$NVM_DIR/calls"
   [ "$1" != "$FAIL" ] || return 9
+  case "$1" in install|use|alias) echo "nvm tool output" ;; esac
   case "$1" in
     current) if [ "$FAIL" = verify ] && [ -f "$NVM_DIR/used" ]; then echo v20.0.0; return; fi; printf '%s\\n' "$(cat "$NVM_DIR/current")" ;;
     version) if [ "$FAIL" = resolve ]; then echo N/A; return; fi; printf 'v24.0.0\\n' ;;
@@ -56,6 +58,24 @@ function run(shell: string, command: string, fail = '') {
 }
 for (const shell of ['bash', 'zsh']) {
   describe.skipIf(!!spawnSync(shell, ['--version']).error)(`${shell} integration`, () => {
+    it('prints progress and a final summary only to stderr', () => {
+      const result = run(shell, 'jrv nvm checkout 24')
+      expect(result.status, result.stderr).toBe(0)
+      expect(result.stdout).toBe('')
+      expect(result.stderr).toContain('Installing Node 24')
+      expect(result.stderr).toContain('nvm tool output')
+      expect(result.stderr).toContain('Checkout complete')
+      expect(result.stderr).toContain('Node: v24.0.0')
+      expect(result.stderr).toContain('Default: v24.0.0')
+      expect(result.stderr).toMatch(/Time: \d+s/)
+      expect(result.stderr).not.toMatch(/[\x1b\r]/)
+    })
+    it('reports the failed step without a success summary', () => {
+      const result = run(shell, 'jrv nvm checkout 24', 'install')
+      expect(result.status).not.toBe(0)
+      expect(result.stderr).toContain('Failed: Installing Node 24')
+      expect(result.stderr).not.toContain('Checkout complete')
+    })
     it('switches the parent PATH and pins default after install/use', () => {
       const result = run(shell, 'jrv nvm checkout 24 && printf "NODE_BIN=%s\\n" "$NVM_BIN"')
       expect(result.status, result.stderr).toBe(0)
@@ -75,6 +95,8 @@ for (const shell of ['bash', 'zsh']) {
     it('installs Jarvis before pruning from the new installation', () => {
       const result = run(shell, 'jrv nvm checkout 24 --force')
       expect(result.status, result.stderr).toBe(0)
+      expect(result.stdout).toBe('')
+      expect(result.stderr).toContain('legacy cleanup output')
       expect(readFileSync(join(root, 'pruned'), 'utf8')).toBe(join(root, 'versions/node/v24.0.0/bin/new-jrv.js'))
       expect(readFileSync(join(root, 'default'), 'utf8').trim()).toBe('v24.0.0')
     })
