@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { Command, InvalidArgumentError } from 'commander'
+import { realpathSync } from 'node:fs'
 import pkg from '../package.json' with { type: 'json' }
 import { add } from './changesets/index.js'
 import { setupDev } from './setup/index.js'
@@ -9,6 +10,7 @@ import { kill } from './kill/index.js'
 import { useEnv } from './use/index.js'
 import { unsleep } from './unsleep/index.js'
 import { cleanup } from './cleanup/index.js'
+import { checkoutNvm, pruneNvm, installTargetJarvis } from './nvm/index.js'
 
 const program = new Command()
 const { version } = pkg
@@ -136,6 +138,42 @@ program
   .option('-r, --risky', 'include risky targets (deletes user data, e.g. CoreSimulator devices)')
   .action(async (options: { dryRun?: boolean; yes?: boolean; risky?: boolean }) => {
     await cleanup(options)
+  })
+
+/**
+ * @zh 安装并切换 Node 版本，设置 nvm default；可选安全清理旧版本
+ * @en install/select Node and set nvm default, optionally prune old versions safely
+ *
+ * usage: `jrv nvm checkout 24 [--force]` (requires shell integration)
+ */
+const nvm = program.command('nvm').description('manage Node versions with nvm-sh')
+nvm.command('checkout')
+  .argument('<version>', 'numeric Node version, e.g. 24 or v24.1.0')
+  .option('--force', 'after checkout, prune unused non-default versions and their nvm caches')
+  .action((version: string) => {
+    try {
+      checkoutNvm(version)
+      const entry = realpathSync(process.argv[1])
+      if (/[\r\n]/.test(process.execPath + entry)) throw new Error('Jarvis executable paths cannot contain newlines.')
+      console.log(`JARVIS_NVM_CHECKOUT:${version}\n${process.execPath}\n${entry}`)
+    } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err))
+      process.exitCode = 1
+    }
+  })
+nvm.command('_install', { hidden: true })
+  .action(() => {
+    try { console.log(installTargetJarvis()) } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err))
+      process.exitCode = 1
+    }
+  })
+nvm.command('_prune', { hidden: true })
+  .action(() => {
+    try { pruneNvm() } catch (err) {
+      console.error(err instanceof Error ? err.message : String(err))
+      process.exitCode = 1
+    }
   })
 
 program.parse()
